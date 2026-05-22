@@ -36,3 +36,17 @@
 - Verification after domain implementation:
   - `npm test`: 5 test files passed, 12 tests passed.
   - `npm run build`: completed successfully.
+- Wrote frontend service tests first for browser fallback settings/history, mock recording/STT, and clipboard output.
+- Verified RED state: service test failed because `src/services/tauri.ts` did not exist.
+- Implemented `src/services/tauri.ts` with Tauri command calls and browser/localStorage fallback.
+- Implemented Rust Tauri commands in `src-tauri/src/commands.rs`:
+  - settings/history JSON persistence
+  - clipboard copy
+  - insert command as clipboard fallback
+  - mock recording start/stop
+  - mock speech recognition
+- Added `arboard` clipboard dependency.
+- Verification after bridge implementation:
+  - `cargo check`: completed successfully.
+  - `npm test`: 6 test files passed, 16 tests passed.
+  - `npm run build`: completed successfully.

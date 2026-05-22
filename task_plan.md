@@ -24,7 +24,7 @@ Build a runnable Windows desktop MVP for the voice input assistant from the exis
 | 3. Project initialization | complete | `npm test` passed 1/1, `npm run build` passed, `cargo check` passed |
 | 4. Tested TypeScript domain core | complete | `npm test` passed 5 files / 12 tests, `npm run build` passed |
 | 5. React UI MVP | pending | Main screen, templates, settings, history, status flow |
-| 6. Tauri command bridge and Rust fallbacks | pending | Commands for settings/history/clipboard/insert/mock recording/STT |
+| 6. Tauri command bridge and Rust fallbacks | complete | `npm test` passed 6 files / 16 tests, `npm run build` passed, `cargo check` passed |
 | 7. Verification and commits | pending | `npm test`, `npm run build`, `cargo test`/Tauri build if available, git commits |
 | 8. Completion audit | pending | Requirement-to-artifact checklist |
 
@@ -37,6 +37,7 @@ Build a runnable Windows desktop MVP for the voice input assistant from the exis
 | 2026-05-23 | First escalated `cargo check` timed out after 184 seconds during initial dependency work | Rerun with a longer timeout |
 | 2026-05-23 | `cargo check` then failed because Tauri Windows resource generation required `src-tauri/icons/icon.ico` | Added a minimal local ICO resource and reran successfully |
 | 2026-05-23 | `npm run build` failed because `String.replaceAll` is not in the ES2020 lib target | Replaced with `split(...).join(...)` and reran tests/build successfully |
+| 2026-05-23 | New service tests failed because Vitest/jsdom exposed a non-standard `localStorage` object in this environment | Injected explicit in-memory `Storage` in tests |
 
 ## Decisions
 
@@ -46,3 +47,4 @@ Build a runnable Windows desktop MVP for the voice input assistant from the exis
 - Manually scaffold the Vite/Tauri files instead of depending on an interactive project generator.
 - Do not include the pre-existing `.gitignore` user change in scaffold commits.
 - Keep TypeScript domain modules framework-independent so UI and Tauri bridge can share them.
+- Auto-insert MVP uses clipboard as the reliable fallback while preserving a Tauri command boundary for later native input simulation.
