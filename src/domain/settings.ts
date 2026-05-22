@@ -1,4 +1,4 @@
-import { ORIGINAL_TEMPLATE_ID } from "./templates";
+import { ORIGINAL_TEMPLATE_ID, type PromptTemplate } from "./templates";
 
 export type OutputMode = "copy" | "insert" | "copy-and-insert";
 
@@ -21,6 +21,7 @@ export type AppSettings = {
   defaultTemplateId: string;
   outputMode: OutputMode;
   hotkey: string;
+  customTemplates: PromptTemplate[];
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -38,6 +39,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultTemplateId: "clean",
   outputMode: "copy",
   hotkey: "Ctrl+Alt+Space",
+  customTemplates: [],
 };
 
 function normalizeTemperature(value: unknown): number {
@@ -64,6 +66,16 @@ export function normalizeSettings(value: unknown): AppSettings {
   const input = (value ?? {}) as Partial<AppSettings>;
   const llm = (input.llm ?? {}) as Partial<LlmSettings>;
   const stt = (input.stt ?? {}) as Partial<SttSettings>;
+  const customTemplates = Array.isArray(input.customTemplates)
+    ? input.customTemplates.filter(
+        (template): template is PromptTemplate =>
+          Boolean(template) &&
+          typeof template.id === "string" &&
+          typeof template.name === "string" &&
+          template.category === "custom" &&
+          typeof template.userPromptTemplate === "string",
+      )
+    : [];
 
   return {
     stt: {
@@ -89,6 +101,7 @@ export function normalizeSettings(value: unknown): AppSettings {
       typeof input.hotkey === "string" && input.hotkey.trim()
         ? input.hotkey.trim()
         : DEFAULT_SETTINGS.hotkey,
+    customTemplates,
   };
 }
 

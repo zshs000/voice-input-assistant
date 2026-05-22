@@ -13,6 +13,12 @@ export type PromptTemplate = {
   userPromptTemplate: string;
 };
 
+export type CreateCustomTemplateInput = {
+  name: string;
+  description: string;
+  userPromptTemplate: string;
+};
+
 export type RenderedPrompt = {
   system: string;
   user: string;
@@ -132,6 +138,30 @@ export const BUILT_IN_TEMPLATES: PromptTemplate[] = [
 
 export function findTemplate(id: string): PromptTemplate {
   return BUILT_IN_TEMPLATES.find((template) => template.id === id) ?? BUILT_IN_TEMPLATES[1];
+}
+
+export function getAvailableTemplates(customTemplates: PromptTemplate[] = []): PromptTemplate[] {
+  return [
+    ...BUILT_IN_TEMPLATES,
+    ...customTemplates.filter(
+      (template) => template.category === "custom" && template.enabled && template.userPromptTemplate.includes("{{input}}"),
+    ),
+  ];
+}
+
+export function createCustomTemplate(input: CreateCustomTemplateInput): PromptTemplate {
+  const now = Date.now();
+
+  return {
+    id: `custom_${now}_${Math.random().toString(36).slice(2, 8)}`,
+    name: input.name.trim(),
+    description: input.description.trim(),
+    category: "custom",
+    enabled: true,
+    usesLlm: true,
+    systemPrompt: BASE_SYSTEM_PROMPT,
+    userPromptTemplate: input.userPromptTemplate.trim(),
+  };
 }
 
 export function renderPrompt(template: PromptTemplate, input: string): RenderedPrompt {

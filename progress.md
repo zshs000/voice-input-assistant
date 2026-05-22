@@ -63,3 +63,20 @@
 - Verification after UI implementation:
   - `npm test`: 6 test files passed, 16 tests passed.
   - `npm run build`: completed successfully.
+- Wrote tests first for custom template creation/merging, custom template settings persistence, explicit mock STT provider contract, and UI presence for the custom template form.
+- Verified RED state:
+  - `createCustomTemplate` missing.
+  - `customTemplates` missing from settings.
+  - `src/domain/speech.ts` missing.
+  - custom template form missing in UI.
+- Implemented:
+  - `createCustomTemplate`
+  - `getAvailableTemplates`
+  - `customTemplates` in `AppSettings`
+  - `src/domain/speech.ts` provider contract and mock provider
+  - custom template form in the settings panel
+- Fixed ES2020 build compatibility in template tests.
+- Verification after custom template/STT abstraction implementation:
+  - `npm test`: 7 test files passed, 19 tests passed.
+  - `npm run build`: completed successfully.
+  - `cargo check`: completed successfully.

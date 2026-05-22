@@ -20,8 +20,11 @@ import {
 } from "./domain/settings";
 import {
   BUILT_IN_TEMPLATES,
+  createCustomTemplate,
   findTemplate,
+  getAvailableTemplates,
   renderPrompt,
+  validateCustomTemplate,
   type PromptTemplate,
 } from "./domain/templates";
 import {
@@ -61,10 +64,13 @@ export function App() {
   const [finalText, setFinalText] = useState("");
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [message, setMessage] = useState("准备录音。");
+  const [customTemplateName, setCustomTemplateName] = useState("");
+  const [customTemplatePrompt, setCustomTemplatePrompt] = useState("请改写以下内容：\n{{input}}");
 
+  const templates = useMemo(() => getAvailableTemplates(settings.customTemplates), [settings.customTemplates]);
   const selectedTemplate = useMemo(
-    () => findTemplate(selectedTemplateId),
-    [selectedTemplateId],
+    () => templates.find((template) => template.id === selectedTemplateId) ?? findTemplate(selectedTemplateId),
+    [selectedTemplateId, templates],
   );
 
   useEffect(() => {
@@ -221,6 +227,35 @@ export function App() {
     setMessage("设置已保存。");
   }
 
+  async function handleAddCustomTemplate() {
+    const validation = validateCustomTemplate({
+      name: customTemplateName,
+      userPromptTemplate: customTemplatePrompt,
+    });
+
+    if (!validation.valid) {
+      setMessage(validation.message);
+      return;
+    }
+
+    const template = createCustomTemplate({
+      name: customTemplateName,
+      description: "用户自定义润色模板",
+      userPromptTemplate: customTemplatePrompt,
+    });
+    const nextSettings = normalizeSettings({
+      ...settings,
+      customTemplates: [...settings.customTemplates, template],
+      defaultTemplateId: template.id,
+    });
+
+    setSettings(nextSettings);
+    setSelectedTemplateId(template.id);
+    setCustomTemplateName("");
+    await saveSettings(nextSettings);
+    setMessage("自定义模板已保存。");
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -253,7 +288,7 @@ export function App() {
                 value={selectedTemplateId}
                 onChange={(event) => setSelectedTemplateId(event.target.value)}
               >
-                {BUILT_IN_TEMPLATES.map((template) => (
+                {templates.map((template) => (
                   <option key={template.id} value={template.id}>
                     {template.name}
                   </option>
@@ -407,6 +442,29 @@ export function App() {
                 <option value="cloud">Cloud</option>
               </select>
             </label>
+
+            <div className="subsection">
+              <h3>自定义模板</h3>
+              <label>
+                <span>自定义模板名称</span>
+                <input
+                  value={customTemplateName}
+                  onChange={(event) => setCustomTemplateName(event.target.value)}
+                  placeholder="例如：小红书笔记"
+                />
+              </label>
+              <label>
+                <span>自定义提示词</span>
+                <textarea
+                  value={customTemplatePrompt}
+                  onChange={(event) => setCustomTemplatePrompt(event.target.value)}
+                />
+              </label>
+              <button type="button" onClick={handleAddCustomTemplate}>
+                <Play size={16} />
+                添加模板
+              </button>
+            </div>
 
             <button type="button" onClick={handleSaveSettings}>
               <Save size={16} />
