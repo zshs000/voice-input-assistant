@@ -20,8 +20,8 @@ Build a runnable Windows desktop MVP for the voice input assistant from the exis
 | Phase | Status | Evidence |
 | --- | --- | --- |
 | 1. Planning files and baseline discovery | complete | `task_plan.md`, `findings.md`, `progress.md` |
-| 2. Toolchain and scaffold strategy | in_progress | Node v25.2.1, npm 11.6.2, rustc/cargo 1.95.0 available |
-| 3. Project initialization | pending | `package.json`, Vite app, Tauri config, Rust crate |
+| 2. Toolchain and scaffold strategy | complete | Node v25.2.1, npm 11.6.2, rustc/cargo 1.95.0 available |
+| 3. Project initialization | complete | `npm test` passed 1/1, `npm run build` passed, `cargo check` passed |
 | 4. Tested TypeScript domain core | pending | Vitest tests for templates, settings/history store, LLM client helpers |
 | 5. React UI MVP | pending | Main screen, templates, settings, history, status flow |
 | 6. Tauri command bridge and Rust fallbacks | pending | Commands for settings/history/clipboard/insert/mock recording/STT |
@@ -32,6 +32,10 @@ Build a runnable Windows desktop MVP for the voice input assistant from the exis
 
 | Time | Error | Resolution |
 | --- | --- | --- |
+| 2026-05-23 | `npm test` / `npm run build` failed with esbuild `spawn EPERM` while loading Vite config | Treat as sandbox process-spawn restriction; rerun verification with escalated permission |
+| 2026-05-23 | `cargo check` failed because Cargo was in offline mode and `serde` was not cached | Rerun with escalated permission so crates can be resolved |
+| 2026-05-23 | First escalated `cargo check` timed out after 184 seconds during initial dependency work | Rerun with a longer timeout |
+| 2026-05-23 | `cargo check` then failed because Tauri Windows resource generation required `src-tauri/icons/icon.ico` | Added a minimal local ICO resource and reran successfully |
 
 ## Decisions
 
@@ -39,3 +43,4 @@ Build a runnable Windows desktop MVP for the voice input assistant from the exis
 - First deliver a runnable MVP with mock/offline STT behavior if microphone/cloud STT is not safely available.
 - Keep API keys local and avoid logging secrets.
 - Manually scaffold the Vite/Tauri files instead of depending on an interactive project generator.
+- Do not include the pre-existing `.gitignore` user change in scaffold commits.

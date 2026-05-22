@@ -1,0 +1,18 @@
+[package]
+name = "voice-input-assistant"
+version = "0.1.0"
+description = "Windows desktop voice input assistant MVP"
+authors = ["Voice Input Assistant Contributors"]
+edition = "2021"
+
+[lib]
+name = "voice_input_assistant_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }
