@@ -50,3 +50,16 @@
   - `cargo check`: completed successfully.
   - `npm test`: 6 test files passed, 16 tests passed.
   - `npm run build`: completed successfully.
+- Wrote App-level test first for the real MVP workspace.
+- Verified RED state: App test failed because the placeholder UI lacked the recording button, template selector, output selector, settings, history, and status.
+- Replaced placeholder UI with:
+  - main recording panel
+  - template selector
+  - output mode selector
+  - recognized/final text result area
+  - settings form for LLM and STT provider
+  - recent history list
+  - workflow wiring through mock recording/STT, optional LLM polishing, output, and history persistence
+- Verification after UI implementation:
+  - `npm test`: 6 test files passed, 16 tests passed.
+  - `npm run build`: completed successfully.

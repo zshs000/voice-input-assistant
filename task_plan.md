@@ -23,7 +23,7 @@ Build a runnable Windows desktop MVP for the voice input assistant from the exis
 | 2. Toolchain and scaffold strategy | complete | Node v25.2.1, npm 11.6.2, rustc/cargo 1.95.0 available |
 | 3. Project initialization | complete | `npm test` passed 1/1, `npm run build` passed, `cargo check` passed |
 | 4. Tested TypeScript domain core | complete | `npm test` passed 5 files / 12 tests, `npm run build` passed |
-| 5. React UI MVP | pending | Main screen, templates, settings, history, status flow |
+| 5. React UI MVP | complete | `npm test` passed 6 files / 16 tests, `npm run build` passed |
 | 6. Tauri command bridge and Rust fallbacks | complete | `npm test` passed 6 files / 16 tests, `npm run build` passed, `cargo check` passed |
 | 7. Verification and commits | pending | `npm test`, `npm run build`, `cargo test`/Tauri build if available, git commits |
 | 8. Completion audit | pending | Requirement-to-artifact checklist |
@@ -48,3 +48,4 @@ Build a runnable Windows desktop MVP for the voice input assistant from the exis
 - Do not include the pre-existing `.gitignore` user change in scaffold commits.
 - Keep TypeScript domain modules framework-independent so UI and Tauri bridge can share them.
 - Auto-insert MVP uses clipboard as the reliable fallback while preserving a Tauri command boundary for later native input simulation.
+- UI uses React local state for MVP workflow to keep the first runnable app small; domain modules remain separate for future state manager migration.
