@@ -22,7 +22,7 @@ Build a runnable Windows desktop MVP for the voice input assistant from the exis
 | 1. Planning files and baseline discovery | complete | `task_plan.md`, `findings.md`, `progress.md` |
 | 2. Toolchain and scaffold strategy | complete | Node v25.2.1, npm 11.6.2, rustc/cargo 1.95.0 available |
 | 3. Project initialization | complete | `npm test` passed 1/1, `npm run build` passed, `cargo check` passed |
-| 4. Tested TypeScript domain core | pending | Vitest tests for templates, settings/history store, LLM client helpers |
+| 4. Tested TypeScript domain core | complete | `npm test` passed 5 files / 12 tests, `npm run build` passed |
 | 5. React UI MVP | pending | Main screen, templates, settings, history, status flow |
 | 6. Tauri command bridge and Rust fallbacks | pending | Commands for settings/history/clipboard/insert/mock recording/STT |
 | 7. Verification and commits | pending | `npm test`, `npm run build`, `cargo test`/Tauri build if available, git commits |
@@ -36,6 +36,7 @@ Build a runnable Windows desktop MVP for the voice input assistant from the exis
 | 2026-05-23 | `cargo check` failed because Cargo was in offline mode and `serde` was not cached | Rerun with escalated permission so crates can be resolved |
 | 2026-05-23 | First escalated `cargo check` timed out after 184 seconds during initial dependency work | Rerun with a longer timeout |
 | 2026-05-23 | `cargo check` then failed because Tauri Windows resource generation required `src-tauri/icons/icon.ico` | Added a minimal local ICO resource and reran successfully |
+| 2026-05-23 | `npm run build` failed because `String.replaceAll` is not in the ES2020 lib target | Replaced with `split(...).join(...)` and reran tests/build successfully |
 
 ## Decisions
 
@@ -44,3 +45,4 @@ Build a runnable Windows desktop MVP for the voice input assistant from the exis
 - Keep API keys local and avoid logging secrets.
 - Manually scaffold the Vite/Tauri files instead of depending on an interactive project generator.
 - Do not include the pre-existing `.gitignore` user change in scaffold commits.
+- Keep TypeScript domain modules framework-independent so UI and Tauri bridge can share them.

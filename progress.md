@@ -25,3 +25,14 @@
 - Longer `cargo check` rerun exposed a Tauri config/resource issue: `icons/icon.ico` was required.
 - Added `src-tauri/icons/icon.ico`.
 - `cargo check` completed successfully after adding the icon.
+- Wrote domain tests first for templates, settings, history, and LLM helpers.
+- Verified RED state: 4 new test suites failed because production modules were missing.
+- Implemented:
+  - `src/domain/templates.ts`
+  - `src/domain/settings.ts`
+  - `src/domain/history.ts`
+  - `src/domain/llm.ts`
+- Fixed a build-only ES2020 compatibility issue by avoiding `String.replaceAll`.
+- Verification after domain implementation:
+  - `npm test`: 5 test files passed, 12 tests passed.
+  - `npm run build`: completed successfully.
