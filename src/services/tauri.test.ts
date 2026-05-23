@@ -5,11 +5,8 @@ import {
   insertText,
   loadHistory,
   loadSettings,
-  recognizeSpeech,
   saveHistory,
   saveSettings,
-  startRecording,
-  stopRecording,
 } from "./tauri";
 
 function createMemoryStorage(): Storage {
@@ -65,16 +62,6 @@ describe("tauri service browser fallback", () => {
 
     expect(await loadHistory()).toHaveLength(1);
     expect((await loadHistory())[0]).not.toHaveProperty("audioPath");
-  });
-
-  it("returns a mock recording and recognition result", async () => {
-    await startRecording();
-    const recording = await stopRecording();
-    const result = await recognizeSpeech(recording.audioRef);
-
-    expect(recording.audioRef).toMatch(/^mock-audio-/);
-    expect(result.text).toContain("这是一个模拟语音识别结果");
-    expect(result.provider).toBe("mock");
   });
 
   it("falls back to navigator clipboard for copy and insert", async () => {

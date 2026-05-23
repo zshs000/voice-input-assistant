@@ -3,7 +3,7 @@ mod commands;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .manage(commands::RecordingState::default())
+        .manage(commands::AsrState::default())
         .invoke_handler(tauri::generate_handler![
             commands::load_settings,
             commands::save_settings,
@@ -11,9 +11,10 @@ pub fn run() {
             commands::save_history,
             commands::copy_text,
             commands::insert_text,
-            commands::start_recording,
-            commands::stop_recording,
-            commands::recognize_speech,
+            commands::asr_start,
+            commands::asr_append_audio,
+            commands::asr_stop,
+            commands::asr_cancel,
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Tauri application");

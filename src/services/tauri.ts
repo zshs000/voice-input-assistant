@@ -6,18 +6,7 @@ import { DEFAULT_SETTINGS, normalizeSettings } from "../domain/settings";
 const SETTINGS_KEY = "voice-input-assistant:settings";
 const HISTORY_KEY = "voice-input-assistant:history";
 
-export type RecordingStopResult = {
-  audioRef: string;
-  durationMs: number;
-};
-
-export type SpeechRecognitionResult = {
-  text: string;
-  durationMs?: number;
-  provider: string;
-};
-
-function isTauriRuntime(): boolean {
+export function isTauriRuntime(): boolean {
   return "__TAURI_INTERNALS__" in window;
 }
 
@@ -85,43 +74,6 @@ export async function saveHistory(history: HistoryItem[]): Promise<void> {
   if (result === null) {
     localStorage.setItem(HISTORY_KEY, JSON.stringify(textOnlyHistory));
   }
-}
-
-export async function startRecording(): Promise<void> {
-  const result = await invokeIfAvailable<void>("start_recording");
-
-  if (result === null) {
-    sessionStorage.setItem("voice-input-assistant:recording-started-at", Date.now().toString());
-  }
-}
-
-export async function stopRecording(): Promise<RecordingStopResult> {
-  const result = await invokeIfAvailable<RecordingStopResult>("stop_recording");
-
-  if (result) {
-    return result;
-  }
-
-  const startedAt = Number(sessionStorage.getItem("voice-input-assistant:recording-started-at"));
-  const durationMs = Number.isFinite(startedAt) ? Math.max(250, Date.now() - startedAt) : 1000;
-  return {
-    audioRef: `mock-audio-${Date.now()}`,
-    durationMs,
-  };
-}
-
-export async function recognizeSpeech(audioRef: string): Promise<SpeechRecognitionResult> {
-  const result = await invokeIfAvailable<SpeechRecognitionResult>("recognize_speech", { audioRef });
-
-  if (result) {
-    return result;
-  }
-
-  return {
-    text: "这是一个模拟语音识别结果，可以在设置中接入真实语音识别服务。",
-    durationMs: 1000,
-    provider: "mock",
-  };
 }
 
 export async function copyText(text: string): Promise<void> {

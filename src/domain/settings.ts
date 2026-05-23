@@ -10,10 +10,17 @@ export type LlmSettings = {
 };
 
 export type SttSettings = {
-  provider: "mock" | "cloud";
+  provider: "mock" | "dashscope";
   endpoint: string;
   apiKey: string;
+  model: string;
+  language: string;
 };
+
+export const DEFAULT_DASHSCOPE_ENDPOINT =
+  "wss://dashscope.aliyuncs.com/api-ws/v1/realtime";
+export const DEFAULT_DASHSCOPE_MODEL = "qwen3-asr-flash-realtime";
+export const DEFAULT_DASHSCOPE_LANGUAGE = "zh";
 
 export type AppSettings = {
   stt: SttSettings;
@@ -26,9 +33,11 @@ export type AppSettings = {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   stt: {
-    provider: "mock",
+    provider: "dashscope",
     endpoint: "",
     apiKey: "",
+    model: DEFAULT_DASHSCOPE_MODEL,
+    language: DEFAULT_DASHSCOPE_LANGUAGE,
   },
   llm: {
     baseUrl: "",
@@ -79,9 +88,17 @@ export function normalizeSettings(value: unknown): AppSettings {
 
   return {
     stt: {
-      provider: stt.provider === "cloud" ? "cloud" : "mock",
+      provider: stt.provider === "dashscope" ? "dashscope" : "mock",
       endpoint: typeof stt.endpoint === "string" ? stt.endpoint.trim() : "",
       apiKey: typeof stt.apiKey === "string" ? stt.apiKey.trim() : "",
+      model:
+        typeof stt.model === "string" && stt.model.trim()
+          ? stt.model.trim()
+          : DEFAULT_DASHSCOPE_MODEL,
+      language:
+        typeof stt.language === "string" && stt.language.trim()
+          ? stt.language.trim()
+          : DEFAULT_DASHSCOPE_LANGUAGE,
     },
     llm: {
       baseUrl: normalizeBaseUrl(llm.baseUrl),

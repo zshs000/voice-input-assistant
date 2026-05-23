@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Clipboard,
   Keyboard,
@@ -19,7 +19,6 @@ import {
   type OutputMode,
 } from "./domain/settings";
 import {
-  BUILT_IN_TEMPLATES,
   createCustomTemplate,
   findTemplate,
   getAvailableTemplates,
@@ -30,14 +29,14 @@ import {
 import {
   copyText,
   insertText,
+  isTauriRuntime,
   loadHistory,
   loadSettings,
-  recognizeSpeech,
   saveHistory,
   saveSettings,
-  startRecording,
-  stopRecording,
 } from "./services/tauri";
+import { PcmRecorder } from "./services/recorder";
+import { startAsrSession, type AsrSessionHandle } from "./services/asr";
 
 type AppStatus = "idle" | "recording" | "recognizing" | "polishing" | "completed" | "failed";
 
@@ -56,6 +55,19 @@ const OUTPUT_MODE_LABELS: Record<OutputMode, string> = {
   "copy-and-insert": "复制并插入",
 };
 
+const MOCK_RECOGNIZED_TEXT = "这是一段模拟的中文识别结果，可在设置中切换为 DashScope 实时识别。";
+const ASR_FINAL_TIMEOUT_MS = 8000;
+
+function toErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string" && error.trim()) return error;
+  if (error && typeof error === "object") {
+    const maybeMessage = (error as { message?: unknown }).message;
+    if (typeof maybeMessage === "string" && maybeMessage.trim()) return maybeMessage;
+  }
+  return fallback;
+}
+
 export function App() {
   const [status, setStatus] = useState<AppStatus>("idle");
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -66,6 +78,11 @@ export function App() {
   const [message, setMessage] = useState("准备录音。");
   const [customTemplateName, setCustomTemplateName] = useState("");
   const [customTemplatePrompt, setCustomTemplatePrompt] = useState("请改写以下内容：\n{{input}}");
+
+  const recorderRef = useRef<PcmRecorder | null>(null);
+  const asrHandleRef = useRef<AsrSessionHandle | null>(null);
+  const finalTranscriptResolverRef = useRef<((text: string) => void) | null>(null);
+  const partialTranscriptRef = useRef<string>("");
 
   const templates = useMemo(() => getAvailableTemplates(settings.customTemplates), [settings.customTemplates]);
   const selectedTemplate = useMemo(
@@ -92,7 +109,7 @@ export function App() {
     }
 
     hydrate().catch((error: unknown) => {
-      setMessage(error instanceof Error ? error.message : "加载本地配置失败。");
+      setMessage(toErrorMessage(error, "加载本地配置失败。"));
     });
 
     return () => {
@@ -127,7 +144,7 @@ export function App() {
         user: prompt.user,
       });
     } catch (error) {
-      setMessage(error instanceof Error ? `润色失败：${error.message}` : "润色失败，已保留原文。");
+      setMessage(error instanceof Error ? `润色失败：${error.message}` : `润色失败：${toErrorMessage(error, "已保留原文")}`);
       return text;
     }
   }
@@ -169,17 +186,147 @@ export function App() {
     setMessage("文本已输出。");
   }
 
+  async function cleanupAsr() {
+    if (recorderRef.current) {
+      try {
+        await recorderRef.current.stop();
+      } catch {
+        // ignore
+      }
+      recorderRef.current = null;
+    }
+    if (asrHandleRef.current) {
+      try {
+        await asrHandleRef.current.cancel();
+      } catch {
+        // ignore
+      }
+      asrHandleRef.current.unlisten();
+      asrHandleRef.current = null;
+    }
+    finalTranscriptResolverRef.current = null;
+  }
+
+  async function startDashscopeRecording() {
+    if (!isTauriRuntime()) {
+      throw new Error("DashScope 识别需要在桌面应用中运行。");
+    }
+
+    if (!settings.stt.apiKey) {
+      throw new Error("未配置 DashScope API Key。");
+    }
+
+    partialTranscriptRef.current = "";
+
+    const handle = await startAsrSession(
+      {
+        apiKey: settings.stt.apiKey,
+        endpoint: settings.stt.endpoint,
+        model: settings.stt.model,
+        language: settings.stt.language,
+      },
+      {
+        onDelta: (text) => {
+          partialTranscriptRef.current = text;
+          setRecognizedText(text);
+        },
+        onCompleted: (text) => {
+          partialTranscriptRef.current = text;
+          setRecognizedText(text);
+          finalTranscriptResolverRef.current?.(text);
+          finalTranscriptResolverRef.current = null;
+        },
+        onError: (msg) => {
+          setMessage(`识别失败：${msg}`);
+          finalTranscriptResolverRef.current?.(partialTranscriptRef.current);
+          finalTranscriptResolverRef.current = null;
+        },
+        onSessionFinished: () => {
+          finalTranscriptResolverRef.current?.(partialTranscriptRef.current);
+          finalTranscriptResolverRef.current = null;
+        },
+      },
+    );
+    asrHandleRef.current = handle;
+
+    const recorder = new PcmRecorder();
+    try {
+      await recorder.start({
+        onChunk: (bytes) => {
+          handle.appendAudio(bytes).catch(() => {
+            // 上层会通过 onError 事件感知；这里吞掉单帧失败
+          });
+        },
+      });
+    } catch (error) {
+      await cleanupAsr();
+      throw error;
+    }
+    recorderRef.current = recorder;
+  }
+
+  async function stopDashscopeRecording(): Promise<string> {
+    if (recorderRef.current) {
+      try {
+        await recorderRef.current.stop();
+      } catch {
+        // ignore
+      }
+      recorderRef.current = null;
+    }
+
+    const handle = asrHandleRef.current;
+    if (!handle) {
+      return partialTranscriptRef.current;
+    }
+
+    const finalPromise = new Promise<string>((resolve) => {
+      finalTranscriptResolverRef.current = resolve;
+      setTimeout(() => {
+        if (finalTranscriptResolverRef.current === resolve) {
+          finalTranscriptResolverRef.current = null;
+          resolve(partialTranscriptRef.current);
+        }
+      }, ASR_FINAL_TIMEOUT_MS);
+    });
+
+    try {
+      await handle.stop();
+    } catch (error) {
+      finalTranscriptResolverRef.current?.(partialTranscriptRef.current);
+      finalTranscriptResolverRef.current = null;
+      throw error;
+    }
+
+    const finalText = await finalPromise;
+    handle.unlisten();
+    asrHandleRef.current = null;
+    return finalText;
+  }
+
   async function handleRecordClick() {
     if (status === "recording") {
+      setStatus("recognizing");
+      setMessage("正在等待最终识别结果。");
+
       try {
-        setStatus("recognizing");
-        const recording = await stopRecording();
-        const result = await recognizeSpeech(recording.audioRef);
-        setRecognizedText(result.text);
-        await completeInput(result.text, selectedTemplate);
+        if (settings.stt.provider === "mock") {
+          setRecognizedText(MOCK_RECOGNIZED_TEXT);
+          await completeInput(MOCK_RECOGNIZED_TEXT, selectedTemplate);
+          return;
+        }
+
+        const text = await stopDashscopeRecording();
+        if (!text.trim()) {
+          setStatus("failed");
+          setMessage("未识别到有效语音。");
+          return;
+        }
+        await completeInput(text, selectedTemplate);
       } catch (error) {
         setStatus("failed");
-        setMessage(error instanceof Error ? error.message : "录音处理失败。");
+        setMessage(toErrorMessage(error, "录音处理失败。"));
+        await cleanupAsr();
       }
       return;
     }
@@ -187,12 +334,18 @@ export function App() {
     try {
       setRecognizedText("");
       setFinalText("");
+      partialTranscriptRef.current = "";
       setMessage("正在录音。");
-      await startRecording();
+
+      if (settings.stt.provider === "dashscope") {
+        await startDashscopeRecording();
+      }
+
       setStatus("recording");
     } catch (error) {
       setStatus("failed");
-      setMessage(error instanceof Error ? error.message : "无法开始录音。");
+      setMessage(toErrorMessage(error, "无法开始录音。"));
+      await cleanupAsr();
     }
   }
 
@@ -205,7 +358,7 @@ export function App() {
       await completeInput(recognizedText, selectedTemplate);
     } catch (error) {
       setStatus("failed");
-      setMessage(error instanceof Error ? error.message : "重新润色失败。");
+      setMessage(toErrorMessage(error, "重新润色失败。"));
     }
   }
 
@@ -434,13 +587,59 @@ export function App() {
                 onChange={(event) =>
                   setSettings((current) => ({
                     ...current,
-                    stt: { ...current.stt, provider: event.target.value === "cloud" ? "cloud" : "mock" },
+                    stt: {
+                      ...current.stt,
+                      provider: event.target.value === "dashscope" ? "dashscope" : "mock",
+                    },
                   }))
                 }
               >
+                <option value="dashscope">DashScope (Qwen-ASR)</option>
                 <option value="mock">Mock</option>
-                <option value="cloud">Cloud</option>
               </select>
+            </label>
+
+            <label>
+              <span>DashScope API Key</span>
+              <input
+                type="password"
+                value={settings.stt.apiKey}
+                onChange={(event) =>
+                  setSettings((current) => ({
+                    ...current,
+                    stt: { ...current.stt, apiKey: event.target.value },
+                  }))
+                }
+                placeholder="sk-..."
+              />
+            </label>
+
+            <label>
+              <span>ASR Model</span>
+              <input
+                value={settings.stt.model}
+                onChange={(event) =>
+                  setSettings((current) => ({
+                    ...current,
+                    stt: { ...current.stt, model: event.target.value },
+                  }))
+                }
+                placeholder="qwen3-asr-flash-realtime"
+              />
+            </label>
+
+            <label>
+              <span>识别语言</span>
+              <input
+                value={settings.stt.language}
+                onChange={(event) =>
+                  setSettings((current) => ({
+                    ...current,
+                    stt: { ...current.stt, language: event.target.value },
+                  }))
+                }
+                placeholder="zh"
+              />
             </label>
 
             <div className="subsection">
