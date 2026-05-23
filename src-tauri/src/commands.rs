@@ -23,7 +23,8 @@ use windows::Win32::{
     Foundation::HWND,
     System::Threading::GetCurrentProcessId,
     UI::WindowsAndMessaging::{
-        GetForegroundWindow, GetWindowThreadProcessId, SetForegroundWindow,
+        GetForegroundWindow, GetWindowThreadProcessId, SetForegroundWindow, SetWindowPos,
+        HWND_TOP, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
     },
 };
 
@@ -176,6 +177,7 @@ fn simulate_paste() -> Result<(), String> {
 pub async fn insert_text(
     text: String,
     state: State<'_, LastForegroundState>,
+    window: tauri::WebviewWindow,
 ) -> Result<(), String> {
     if text.is_empty() {
         return Ok(());
@@ -208,11 +210,28 @@ pub async fn insert_text(
         tokio::task::spawn_blocking(simulate_paste)
             .await
             .map_err(|error| format!("插入任务调度失败：{error}"))??;
+
+        // 把自己窗口提回普通 z-order 顶部但不抢焦点，避免被工具窗口规则推到最底层
+        if let Ok(self_hwnd) = window.hwnd() {
+            let raw_self = self_hwnd.0 as isize;
+            unsafe {
+                let _ = SetWindowPos(
+                    HWND(raw_self as *mut _),
+                    HWND_TOP,
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+                );
+            }
+        }
     }
 
     #[cfg(not(windows))]
     {
         let _ = state;
+        let _ = window;
     }
 
     Ok(())
