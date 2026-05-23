@@ -3,12 +3,14 @@ import {
   Clipboard,
   Keyboard,
   Mic,
+  Pencil,
   Plus,
   RefreshCcw,
   Save,
   Send,
   Settings as SettingsIcon,
   Square,
+  Trash2,
   X,
 } from "lucide-react";
 import { addHistoryItem, createHistoryItem, type HistoryItem } from "./domain/history";
@@ -21,9 +23,13 @@ import {
 } from "./domain/settings";
 import {
   createCustomTemplate,
+  EXAMPLE_TEMPLATES,
   findTemplate,
   getAvailableTemplates,
+  PROMPT_PREVIEW_SAMPLE,
+  removeCustomTemplate,
   renderPrompt,
+  updateCustomTemplate,
   validateCustomTemplate,
   type PromptTemplate,
 } from "./domain/templates";
@@ -79,6 +85,7 @@ export function App() {
   const [message, setMessage] = useState("准备录音。");
   const [customTemplateName, setCustomTemplateName] = useState("");
   const [customTemplatePrompt, setCustomTemplatePrompt] = useState("请改写以下内容：\n{{input}}");
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const recorderRef = useRef<PcmRecorder | null>(null);
@@ -91,6 +98,12 @@ export function App() {
     () => templates.find((template) => template.id === selectedTemplateId) ?? findTemplate(selectedTemplateId),
     [selectedTemplateId, templates],
   );
+  const previewPrompt = useMemo(() => {
+    if (!customTemplatePrompt.includes("{{input}}")) {
+      return "";
+    }
+    return customTemplatePrompt.split("{{input}}").join(PROMPT_PREVIEW_SAMPLE);
+  }, [customTemplatePrompt]);
 
   useEffect(() => {
     let cancelled = false;
@@ -407,22 +420,82 @@ export function App() {
       return;
     }
 
-    const template = createCustomTemplate({
-      name: customTemplateName,
-      description: "用户自定义润色模板",
-      userPromptTemplate: customTemplatePrompt,
-    });
-    const nextSettings = normalizeSettings({
-      ...settings,
-      customTemplates: [...settings.customTemplates, template],
-      defaultTemplateId: template.id,
-    });
+    let nextSettings: AppSettings;
+    let activeId: string;
+
+    if (editingTemplateId) {
+      nextSettings = normalizeSettings({
+        ...settings,
+        customTemplates: updateCustomTemplate(settings.customTemplates, editingTemplateId, {
+          name: customTemplateName,
+          userPromptTemplate: customTemplatePrompt,
+        }),
+      });
+      activeId = editingTemplateId;
+      setMessage("自定义模板已更新。");
+    } else {
+      const template = createCustomTemplate({
+        name: customTemplateName,
+        description: "用户自定义润色模板",
+        userPromptTemplate: customTemplatePrompt,
+      });
+      nextSettings = normalizeSettings({
+        ...settings,
+        customTemplates: [...settings.customTemplates, template],
+        defaultTemplateId: template.id,
+      });
+      activeId = template.id;
+      setMessage("自定义模板已保存。");
+    }
 
     setSettings(nextSettings);
-    setSelectedTemplateId(template.id);
+    setSelectedTemplateId(activeId);
+    setEditingTemplateId(null);
     setCustomTemplateName("");
+    setCustomTemplatePrompt("请改写以下内容：\n{{input}}");
     await saveSettings(nextSettings);
-    setMessage("自定义模板已保存。");
+  }
+
+  function handleEditCustomTemplate(template: PromptTemplate) {
+    setEditingTemplateId(template.id);
+    setCustomTemplateName(template.name);
+    setCustomTemplatePrompt(template.userPromptTemplate);
+    setMessage(`正在编辑「${template.name}」。`);
+  }
+
+  async function handleDeleteCustomTemplate(template: PromptTemplate) {
+    const remaining = removeCustomTemplate(settings.customTemplates, template.id);
+    const nextDefaultId =
+      settings.defaultTemplateId === template.id ? "clean" : settings.defaultTemplateId;
+    const nextSettings = normalizeSettings({
+      ...settings,
+      customTemplates: remaining,
+      defaultTemplateId: nextDefaultId,
+    });
+    setSettings(nextSettings);
+    if (selectedTemplateId === template.id) {
+      setSelectedTemplateId(nextDefaultId);
+    }
+    if (editingTemplateId === template.id) {
+      setEditingTemplateId(null);
+      setCustomTemplateName("");
+      setCustomTemplatePrompt("请改写以下内容：\n{{input}}");
+    }
+    await saveSettings(nextSettings);
+    setMessage(`已删除「${template.name}」。`);
+  }
+
+  function handleApplyExample(example: (typeof EXAMPLE_TEMPLATES)[number]) {
+    setEditingTemplateId(null);
+    setCustomTemplateName(example.name);
+    setCustomTemplatePrompt(example.userPromptTemplate);
+    setMessage(`已填入「${example.name}」示例，可继续编辑后保存。`);
+  }
+
+  function handleCancelEdit() {
+    setEditingTemplateId(null);
+    setCustomTemplateName("");
+    setCustomTemplatePrompt("请改写以下内容：\n{{input}}");
   }
 
   return (
@@ -739,11 +812,75 @@ export function App() {
               <section className="form-group">
                 <header className="form-group-header">
                   <h3>自定义模板</h3>
-                  <p>使用 {`{{input}}`} 占位识别文本，保存后会自动加入润色模板下拉。</p>
+                  <p>把"风格指南"放前面，{`{{input}}`} 放末尾。规则越具体，结果越稳定。</p>
                 </header>
+
+                {settings.customTemplates.length > 0 ? (
+                  <ul className="template-list">
+                    {settings.customTemplates.map((template) => (
+                      <li
+                        key={template.id}
+                        className={`template-row${editingTemplateId === template.id ? " editing" : ""}`}
+                      >
+                        <div className="template-row-main">
+                          <strong>{template.name}</strong>
+                          {template.description ? <p>{template.description}</p> : null}
+                        </div>
+                        <div className="template-row-actions">
+                          <button
+                            type="button"
+                            className="row-button"
+                            onClick={() => handleEditCustomTemplate(template)}
+                            aria-label={`编辑 ${template.name}`}
+                          >
+                            <Pencil size={14} />
+                            编辑
+                          </button>
+                          <button
+                            type="button"
+                            className="row-button row-button-danger"
+                            onClick={() => handleDeleteCustomTemplate(template)}
+                            aria-label={`删除 ${template.name}`}
+                          >
+                            <Trash2 size={14} />
+                            删除
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty">还没有自定义模板，可以从下方示例开始。</p>
+                )}
+
+                <div className="example-chips" role="group" aria-label="模板示例">
+                  <span className="example-chips-label">示例：</span>
+                  {EXAMPLE_TEMPLATES.map((example) => (
+                    <button
+                      key={example.key}
+                      type="button"
+                      className="chip"
+                      onClick={() => handleApplyExample(example)}
+                      title={example.description}
+                    >
+                      {example.name}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="prompt-tips" aria-label="模板撰写指南">
+                  <strong>怎么写一个好的提示词</strong>
+                  <ol>
+                    <li>先用一句说清"要做什么"，例如"请把下面内容改写为正式邮件"。</li>
+                    <li>列 2-5 条具体规则（语气、长度、要不要表情/标签等）。</li>
+                    <li>结尾放 <code>{`{{input}}`}</code>，并放在"原文："这种小标题下面。</li>
+                    <li>不要在 <code>{`{{input}}`}</code> 后面追加指令，会被当成用户原文一部分。</li>
+                  </ol>
+                </div>
+
                 <div className="form-grid">
                   <label>
-                    <span>自定义模板名称</span>
+                    <span>模板名称</span>
                     <input
                       value={customTemplateName}
                       onChange={(event) => setCustomTemplateName(event.target.value)}
@@ -751,17 +888,35 @@ export function App() {
                     />
                   </label>
                 </div>
+
                 <label>
-                  <span>自定义提示词</span>
+                  <span>提示词内容（必须包含 {`{{input}}`}）</span>
                   <textarea
                     value={customTemplatePrompt}
                     onChange={(event) => setCustomTemplatePrompt(event.target.value)}
+                    rows={8}
                   />
                 </label>
-                <button type="button" className="ghost-button" onClick={handleAddCustomTemplate}>
-                  <Plus size={16} />
-                  添加模板
-                </button>
+
+                <div className="prompt-preview" aria-live="polite">
+                  <div className="prompt-preview-head">
+                    <strong>预览：LLM 实际会看到</strong>
+                    <span>示例输入「{PROMPT_PREVIEW_SAMPLE}」</span>
+                  </div>
+                  <pre>{previewPrompt || "提示词必须包含 {{input}} 占位符，预览暂不可用。"}</pre>
+                </div>
+
+                <div className="button-row template-actions">
+                  {editingTemplateId ? (
+                    <button type="button" className="ghost-button" onClick={handleCancelEdit}>
+                      取消编辑
+                    </button>
+                  ) : null}
+                  <button type="button" className="primary-button" onClick={handleAddCustomTemplate}>
+                    <Plus size={16} />
+                    {editingTemplateId ? "更新模板" : "添加模板"}
+                  </button>
+                </div>
               </section>
             </div>
 

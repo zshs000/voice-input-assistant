@@ -489,6 +489,177 @@ h3 {
   }
 }
 
+/* ===== Custom templates ===== */
+
+.template-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.template-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #ffffff;
+  border: 1px solid #dde5e8;
+  border-radius: 10px;
+}
+
+.template-row.editing {
+  border-color: #1f6f78;
+  box-shadow: 0 0 0 3px rgb(31 111 120 / 14%);
+}
+
+.template-row-main {
+  min-width: 0;
+}
+
+.template-row-main strong {
+  display: block;
+  font-size: 14px;
+  color: #1c2428;
+}
+
+.template-row-main p {
+  margin: 2px 0 0;
+  color: #607178;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.template-row-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.row-button {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: #2c3a40;
+  background: #f3f6f7;
+  border-color: #e0e7ea;
+}
+
+.row-button:hover:not(:disabled) {
+  background: #e8eef0;
+  border-color: #b9c6ca;
+}
+
+.row-button-danger {
+  color: #ad3b3b;
+}
+
+.row-button-danger:hover:not(:disabled) {
+  color: #ffffff;
+  background: #ad3b3b;
+  border-color: #ad3b3b;
+}
+
+.example-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.example-chips-label {
+  color: #607178;
+  font-size: 12px;
+}
+
+.chip {
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #1f6f78;
+  background: #e8f1f3;
+  border-color: #c8dde0;
+}
+
+.chip:hover:not(:disabled) {
+  background: #d4e6ea;
+  border-color: #1f6f78;
+}
+
+.prompt-tips {
+  padding: 12px 14px;
+  background: #fff8e8;
+  border: 1px solid #f1e1b4;
+  border-radius: 10px;
+  color: #5b4a17;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.prompt-tips strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #4a3c10;
+}
+
+.prompt-tips ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.prompt-tips code {
+  padding: 1px 6px;
+  background: #f7ecc5;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: #4a3c10;
+}
+
+.prompt-preview {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  background: #0f2629;
+  border: 1px solid #0a1c1f;
+  border-radius: 10px;
+  color: #d6ecef;
+}
+
+.prompt-preview-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  color: #b3d2d7;
+  font-size: 12px;
+}
+
+.prompt-preview-head strong {
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.prompt-preview pre {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #e8f4f6;
+}
+
+.template-actions {
+  justify-content: flex-end;
+}
+
 @media (max-width: 920px) {
   .app-shell {
     padding: 16px;

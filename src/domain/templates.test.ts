@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   BUILT_IN_TEMPLATES,
+  EXAMPLE_TEMPLATES,
   ORIGINAL_TEMPLATE_ID,
   createCustomTemplate,
   findTemplate,
   getAvailableTemplates,
+  removeCustomTemplate,
   renderPrompt,
+  updateCustomTemplate,
   validateCustomTemplate,
 } from "./templates";
 
@@ -68,5 +71,39 @@ describe("templates", () => {
 
     expect(templates[templates.length - 1]?.id).toBe(custom.id);
     expect(templates.some((template) => template.id === disabled.id)).toBe(false);
+  });
+
+  it("ships example templates that all include the input placeholder", () => {
+    expect(EXAMPLE_TEMPLATES.length).toBeGreaterThan(0);
+    for (const example of EXAMPLE_TEMPLATES) {
+      expect(example.userPromptTemplate).toContain("{{input}}");
+      expect(example.name.trim()).not.toBe("");
+    }
+  });
+
+  it("updates a custom template in place", () => {
+    const original = createCustomTemplate({
+      name: "原名",
+      description: "原描述",
+      userPromptTemplate: "原 {{input}}",
+    });
+
+    const next = updateCustomTemplate([original], original.id, {
+      name: "新名",
+      userPromptTemplate: "新 {{input}}",
+    });
+
+    expect(next).toHaveLength(1);
+    expect(next[0].name).toBe("新名");
+    expect(next[0].description).toBe("原描述");
+    expect(next[0].userPromptTemplate).toBe("新 {{input}}");
+    expect(next[0].id).toBe(original.id);
+  });
+
+  it("removes a custom template by id", () => {
+    const a = createCustomTemplate({ name: "A", description: "", userPromptTemplate: "{{input}}" });
+    const b = createCustomTemplate({ name: "B", description: "", userPromptTemplate: "{{input}}" });
+
+    expect(removeCustomTemplate([a, b], a.id)).toEqual([b]);
   });
 });

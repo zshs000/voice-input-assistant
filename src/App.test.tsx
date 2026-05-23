@@ -27,7 +27,8 @@ describe("App", () => {
     expect(screen.getByLabelText("ASR Model")).toBeInTheDocument();
     expect(screen.getByLabelText("识别语言")).toBeInTheDocument();
     expect(screen.getByLabelText("LLM Base URL")).toBeInTheDocument();
-    expect(screen.getByLabelText("自定义模板名称")).toBeInTheDocument();
+    expect(screen.getByLabelText("模板名称")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /添加模板/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /保存设置/ })).toBeInTheDocument();
   });
 });

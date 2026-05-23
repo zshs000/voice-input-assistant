@@ -140,6 +140,58 @@ export function findTemplate(id: string): PromptTemplate {
   return BUILT_IN_TEMPLATES.find((template) => template.id === id) ?? BUILT_IN_TEMPLATES[1];
 }
 
+export type ExampleTemplate = {
+  key: string;
+  name: string;
+  description: string;
+  userPromptTemplate: string;
+};
+
+export const EXAMPLE_TEMPLATES: ExampleTemplate[] = [
+  {
+    key: "xiaohongshu",
+    name: "小红书笔记",
+    description: "改写为活泼的小红书短帖",
+    userPromptTemplate:
+      "请把下面这段口语化中文改写为小红书笔记风格的短帖文。\n\n" +
+      "要求：\n" +
+      "1. 开头一句抓眼球，可加 1-2 个表情。\n" +
+      "2. 主体分 2-4 个短段或要点，多用换行，少用长句。\n" +
+      "3. 语气真诚、轻松，避免油腻夸张词。\n" +
+      "4. 结尾加 3-5 个相关 # 标签。\n" +
+      "5. 不要改变用户原意，不要编造没说过的细节。\n\n" +
+      "原文：\n{{input}}",
+  },
+  {
+    key: "email-reply",
+    name: "邮件回复",
+    description: "改写为正式礼貌的中文邮件正文",
+    userPromptTemplate:
+      "请将下面这段口语化中文改写为正式礼貌的中文邮件正文。\n\n" +
+      "要求：\n" +
+      "1. 直接给出正文段落，不要包含主题行、问候语或落款。\n" +
+      "2. 语气专业、客观、礼貌，避免口语词。\n" +
+      "3. 句式简洁清晰，必要时分段。\n" +
+      "4. 保留原意，不要编造没有提到的承诺或细节。\n\n" +
+      "原文：\n{{input}}",
+  },
+  {
+    key: "weekly-report",
+    name: "周报要点",
+    description: "把口述内容整理为周报要点",
+    userPromptTemplate:
+      "请将下面这段口语化中文整理为简洁的周报要点。\n\n" +
+      "要求：\n" +
+      "1. 用 3-6 条要点呈现，每条不超过两句。\n" +
+      "2. 突出本周完成的事项和遇到的问题。\n" +
+      "3. 保留原文中的关键数据与时间点。\n" +
+      "4. 不添加原文没说过的内容。\n\n" +
+      "原文：\n{{input}}",
+  },
+];
+
+export const PROMPT_PREVIEW_SAMPLE = "嗯今天天气真不错，我们去公园走一走吧。";
+
 export function getAvailableTemplates(customTemplates: PromptTemplate[] = []): PromptTemplate[] {
   return [
     ...BUILT_IN_TEMPLATES,
@@ -184,4 +236,35 @@ export function validateCustomTemplate(input: {
   }
 
   return { valid: true };
+}
+
+export type CustomTemplatePatch = {
+  name?: string;
+  description?: string;
+  userPromptTemplate?: string;
+};
+
+export function updateCustomTemplate(
+  templates: PromptTemplate[],
+  id: string,
+  patch: CustomTemplatePatch,
+): PromptTemplate[] {
+  return templates.map((template) => {
+    if (template.id !== id || template.category !== "custom") {
+      return template;
+    }
+    return {
+      ...template,
+      name: patch.name?.trim() ?? template.name,
+      description: patch.description?.trim() ?? template.description,
+      userPromptTemplate: patch.userPromptTemplate?.trim() ?? template.userPromptTemplate,
+    };
+  });
+}
+
+export function removeCustomTemplate(
+  templates: PromptTemplate[],
+  id: string,
+): PromptTemplate[] {
+  return templates.filter((template) => template.id !== id);
 }
