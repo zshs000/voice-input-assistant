@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { addHistoryItem, createHistoryItem, type HistoryItem } from "./domain/history";
 import { polishWithOpenAICompatible } from "./domain/llm";
+import { isRecordingTooShort, MIN_RECORDING_DURATION_MS } from "./domain/recording";
 import {
   DEFAULT_SETTINGS,
   normalizeSettings,
@@ -98,6 +99,7 @@ export function App() {
   const finalTranscriptResolverRef = useRef<((text: string) => void) | null>(null);
   const partialTranscriptRef = useRef<string>("");
   const handleRecordClickRef = useRef<() => Promise<void>>(async () => {});
+  const recordingStartedAtRef = useRef<number>(0);
 
   const templates = useMemo(() => getAvailableTemplates(settings.customTemplates), [settings.customTemplates]);
   const selectedTemplate = useMemo(
@@ -377,6 +379,14 @@ export function App() {
 
   async function handleRecordClick() {
     if (status === "recording") {
+      const durationMs = Date.now() - recordingStartedAtRef.current;
+      if (isRecordingTooShort(durationMs)) {
+        setStatus("idle");
+        setMessage(`录音时长不足 ${MIN_RECORDING_DURATION_MS} 毫秒，已忽略。`);
+        await cleanupAsr();
+        return;
+      }
+
       setStatus("recognizing");
       setMessage("正在等待最终识别结果。");
 
@@ -412,6 +422,7 @@ export function App() {
         await startDashscopeRecording();
       }
 
+      recordingStartedAtRef.current = Date.now();
       setStatus("recording");
     } catch (error) {
       setStatus("failed");
