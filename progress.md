@@ -80,3 +80,11 @@
   - `npm test`: 7 test files passed, 19 tests passed.
   - `npm run build`: completed successfully.
   - `cargo check`: completed successfully.
+- Desktop packaging pass:
+  - Added a stable bundle icon path in Tauri config.
+  - Full installer bundling was not kept as the default MVP path because WiX/NSIS tooling failed in this environment.
+  - Set Tauri bundling inactive so `npm run tauri build` reliably emits the runnable release executable.
+  - `npm run tauri build` completed successfully and produced `src-tauri/target/release/voice-input-assistant.exe`.
+- Completion audit:
+  - Project scaffold, desktop UI, recording entry, STT abstraction, LLM-compatible polishing client, built-in/custom templates, settings persistence, history, clipboard output, and auto-insert fallback command are implemented.
+  - The MVP uses mock/offline recording and STT behavior by default; real STT integration is isolated behind provider/config boundaries for later expansion.

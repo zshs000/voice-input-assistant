@@ -26,8 +26,8 @@ Build a runnable Windows desktop MVP for the voice input assistant from the exis
 | 5. React UI MVP | complete | `npm test` passed 6 files / 16 tests, `npm run build` passed |
 | 6. Tauri command bridge and Rust fallbacks | complete | `npm test` passed 6 files / 16 tests, `npm run build` passed, `cargo check` passed |
 | 6.5. Custom templates and STT provider abstraction | complete | `npm test` passed 7 files / 19 tests, `npm run build` passed, `cargo check` passed |
-| 7. Verification and commits | pending | `npm test`, `npm run build`, `cargo test`/Tauri build if available, git commits |
-| 8. Completion audit | pending | Requirement-to-artifact checklist |
+| 7. Verification and commits | complete | `npm test` passed 7 files / 19 tests, `npm run build` passed, `cargo check` passed, `npm run tauri build` produced `src-tauri/target/release/voice-input-assistant.exe`, multiple commits created |
+| 8. Completion audit | complete | Requirement-to-artifact checklist reviewed against current codebase |
 
 ## Errors Encountered
 
@@ -40,6 +40,7 @@ Build a runnable Windows desktop MVP for the voice input assistant from the exis
 | 2026-05-23 | `npm run build` failed because `String.replaceAll` is not in the ES2020 lib target | Replaced with `split(...).join(...)` and reran tests/build successfully |
 | 2026-05-23 | New service tests failed because Vitest/jsdom exposed a non-standard `localStorage` object in this environment | Injected explicit in-memory `Storage` in tests |
 | 2026-05-23 | `npm run build` failed because test code used `Array.at`, which is outside the ES2020 lib target | Replaced with indexed access and reran verification successfully |
+| 2026-05-23 | Full Tauri bundling path hit WiX/NSIS packaging friction and Chinese codepage issues | Switched bundle mode off for the MVP release path and kept the runnable Windows exe output as the verified artifact |
 
 ## Decisions
 
