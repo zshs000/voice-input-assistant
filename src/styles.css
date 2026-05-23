@@ -256,6 +256,45 @@ h3 {
   border-color: #185b62;
 }
 
+.record-button.status-recording {
+  background: linear-gradient(135deg, #c45050 0%, #d96565 100%);
+  border-color: #c45050;
+  box-shadow: 0 8px 18px rgb(196 80 80 / 28%);
+  animation: record-button-pulse 1.6s ease-in-out infinite;
+}
+
+.record-button.status-recording:hover:not(:disabled) {
+  background: linear-gradient(135deg, #a83a3a 0%, #c25151 100%);
+  border-color: #a83a3a;
+}
+
+.record-button.status-recognizing,
+.record-button.status-polishing {
+  background: linear-gradient(135deg, #b8862b 0%, #d9a039 100%);
+  border-color: #b8862b;
+  box-shadow: 0 8px 18px rgb(184 134 43 / 28%);
+}
+
+.record-button.status-completed {
+  background: linear-gradient(135deg, #2f8055 0%, #38a06a 100%);
+  border-color: #2f8055;
+  box-shadow: 0 8px 18px rgb(47 128 85 / 28%);
+}
+
+.record-button.status-failed {
+  background: linear-gradient(135deg, #a83a3a 0%, #c34a4a 100%);
+  border-color: #a83a3a;
+}
+
+@keyframes record-button-pulse {
+  0%, 100% {
+    box-shadow: 0 8px 18px rgb(196 80 80 / 28%);
+  }
+  50% {
+    box-shadow: 0 8px 18px rgb(196 80 80 / 28%), 0 0 0 4px rgb(196 80 80 / 14%);
+  }
+}
+
 .helper,
 .empty {
   margin: 0;
@@ -696,6 +735,25 @@ h3 {
   font-style: normal;
   font-size: 12px;
   line-height: 1.45;
+}
+
+.field-hint {
+  display: block;
+  margin-top: 2px;
+  color: #607178;
+  font-style: normal;
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 400;
+}
+
+.field-hint code {
+  padding: 1px 6px;
+  background: #eef3f4;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  color: #1f6f78;
 }
 
 /* ===== Compact window ===== */

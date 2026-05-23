@@ -47,6 +47,7 @@ import {
 import { PcmRecorder } from "./services/recorder";
 import { startAsrSession, type AsrSessionHandle } from "./services/asr";
 import { setWindowMode as applyWindowMode, type WindowMode } from "./services/window";
+import { register as registerShortcut, unregister as unregisterShortcut } from "@tauri-apps/plugin-global-shortcut";
 
 type AppStatus = "idle" | "recording" | "recognizing" | "polishing" | "completed" | "failed";
 
@@ -96,6 +97,7 @@ export function App() {
   const asrHandleRef = useRef<AsrSessionHandle | null>(null);
   const finalTranscriptResolverRef = useRef<((text: string) => void) | null>(null);
   const partialTranscriptRef = useRef<string>("");
+  const handleRecordClickRef = useRef<() => Promise<void>>(async () => {});
 
   const templates = useMemo(() => getAvailableTemplates(settings.customTemplates), [settings.customTemplates]);
   const selectedTemplate = useMemo(
@@ -148,6 +150,43 @@ export function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [settingsOpen]);
+
+  useEffect(() => {
+    handleRecordClickRef.current = handleRecordClick;
+  });
+
+  useEffect(() => {
+    if (!isTauriRuntime()) {
+      return;
+    }
+    const accelerator = settings.hotkey?.trim();
+    if (!accelerator) {
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await registerShortcut(accelerator, (event) => {
+          if (cancelled) return;
+          if (event.state !== "Pressed") return;
+          void handleRecordClickRef.current();
+        });
+      } catch (error) {
+        setMessage(
+          `注册快捷键「${accelerator}」失败：${toErrorMessage(error, "请检查是否被其他应用占用")}`,
+        );
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      unregisterShortcut(accelerator).catch(() => {
+        // 忽略反注册失败：通常是窗口正在关闭
+      });
+    };
+  }, [settings.hotkey]);
 
   async function persistHistory(nextHistory: HistoryItem[]) {
     setHistory(nextHistory);
@@ -589,7 +628,7 @@ export function App() {
         <section className="panel input-panel" aria-label="录音输入">
           <div className="record-block">
             <button
-              className="record-button"
+              className={`record-button status-${status}`}
               type="button"
               onClick={handleRecordClick}
               aria-pressed={status === "recording"}
@@ -895,6 +934,21 @@ export function App() {
                     <strong>小窗口常驻最上层</strong>
                     <em>开启后小窗口始终浮在其他窗口之上，方便边录边切应用</em>
                   </span>
+                </label>
+                <label>
+                  <span>
+                    全局快捷键
+                    <em className="field-hint">
+                      在任何应用下按一下开始/停止录音。格式如 <code>Ctrl+Alt+Space</code>、<code>Ctrl+Shift+R</code>，保存后立即生效。
+                    </em>
+                  </span>
+                  <input
+                    value={settings.hotkey}
+                    onChange={(event) =>
+                      setSettings((current) => ({ ...current, hotkey: event.target.value }))
+                    }
+                    placeholder="Ctrl+Alt+Space"
+                  />
                 </label>
               </section>
 
