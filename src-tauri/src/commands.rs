@@ -1,6 +1,12 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::PathBuf,
+    sync::{Arc, Mutex as StdMutex},
+    time::Duration,
+};
 
 use arboard::Clipboard;
+use enigo::{Direction, Enigo, Key, Keyboard, Settings as EnigoSettings};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -12,9 +18,23 @@ use tokio_tungstenite::tungstenite::{
     protocol::Message,
 };
 
+#[cfg(windows)]
+use windows::Win32::{
+    Foundation::HWND,
+    System::Threading::GetCurrentProcessId,
+    UI::WindowsAndMessaging::{
+        GetForegroundWindow, GetWindowThreadProcessId, SetForegroundWindow,
+    },
+};
+
 const DEFAULT_DASHSCOPE_ENDPOINT: &str = "wss://dashscope.aliyuncs.com/api-ws/v1/realtime";
 const DEFAULT_DASHSCOPE_MODEL: &str = "qwen3-asr-flash-realtime";
 const TRANSCRIPTION_EVENT: &str = "asr-transcription";
+const FOREGROUND_POLL_MS: u64 = 250;
+const FOCUS_RESTORE_DELAY_MS: u64 = 80;
+
+#[derive(Default, Clone)]
+pub struct LastForegroundState(pub Arc<StdMutex<Option<isize>>>);
 
 #[derive(Default)]
 pub struct AsrState {
@@ -104,9 +124,98 @@ pub fn copy_text(text: String) -> Result<(), String> {
         .map_err(|error| format!("failed to write clipboard: {error}"))
 }
 
+fn copy_to_clipboard(text: &str) -> Result<(), String> {
+    Clipboard::new()
+        .map_err(|error| format!("failed to access clipboard: {error}"))?
+        .set_text(text.to_string())
+        .map_err(|error| format!("failed to write clipboard: {error}"))
+}
+
+#[cfg(windows)]
+pub fn start_foreground_poller(state: LastForegroundState) {
+    tauri::async_runtime::spawn(async move {
+        let self_pid = unsafe { GetCurrentProcessId() };
+        loop {
+            tokio::time::sleep(Duration::from_millis(FOREGROUND_POLL_MS)).await;
+            let hwnd = unsafe { GetForegroundWindow() };
+            if hwnd.0.is_null() {
+                continue;
+            }
+            let mut pid: u32 = 0;
+            unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
+            if pid == 0 || pid == self_pid {
+                continue;
+            }
+            if let Ok(mut guard) = state.0.lock() {
+                *guard = Some(hwnd.0 as isize);
+            }
+        }
+    });
+}
+
+#[cfg(not(windows))]
+pub fn start_foreground_poller(_state: LastForegroundState) {
+    // 仅 Windows 平台需要轮询前台窗口
+}
+
+#[cfg(windows)]
+fn simulate_paste() -> Result<(), String> {
+    let mut enigo = Enigo::new(&EnigoSettings::default())
+        .map_err(|error| format!("键盘模拟初始化失败：{error}"))?;
+    enigo
+        .key(Key::Control, Direction::Press)
+        .map_err(|error| format!("Ctrl 按下失败：{error}"))?;
+    let v_result = enigo.key(Key::Unicode('v'), Direction::Click);
+    let release_result = enigo.key(Key::Control, Direction::Release);
+    v_result.map_err(|error| format!("V 输入失败：{error}"))?;
+    release_result.map_err(|error| format!("Ctrl 释放失败：{error}"))?;
+    Ok(())
+}
+
 #[tauri::command]
-pub fn insert_text(text: String) -> Result<(), String> {
-    copy_text(text)
+pub async fn insert_text(
+    text: String,
+    state: State<'_, LastForegroundState>,
+) -> Result<(), String> {
+    if text.is_empty() {
+        return Ok(());
+    }
+
+    copy_to_clipboard(&text)?;
+
+    #[cfg(windows)]
+    {
+        let target_raw = {
+            let guard = state
+                .0
+                .lock()
+                .map_err(|_| "前台窗口状态锁损坏".to_string())?;
+            *guard
+        };
+
+        let Some(raw) = target_raw else {
+            return Err("尚未捕获到上一个外部窗口；结果已复制到剪贴板，请手动粘贴。".into());
+        };
+
+        let hwnd = HWND(raw as *mut _);
+        let activated = unsafe { SetForegroundWindow(hwnd) }.as_bool();
+        if !activated {
+            return Err("无法切回目标窗口；结果已复制到剪贴板，请手动粘贴。".into());
+        }
+
+        tokio::time::sleep(Duration::from_millis(FOCUS_RESTORE_DELAY_MS)).await;
+
+        tokio::task::spawn_blocking(simulate_paste)
+            .await
+            .map_err(|error| format!("插入任务调度失败：{error}"))??;
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = state;
+    }
+
+    Ok(())
 }
 
 fn new_event_id() -> String {

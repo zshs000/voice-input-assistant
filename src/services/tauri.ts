@@ -10,14 +10,6 @@ export function isTauriRuntime(): boolean {
   return "__TAURI_INTERNALS__" in window;
 }
 
-async function invokeIfAvailable<T>(command: string, args?: Record<string, unknown>): Promise<T | null> {
-  if (!isTauriRuntime()) {
-    return null;
-  }
-
-  return invoke<T>(command, args);
-}
-
 function readJson<T>(key: string, fallback: T): T {
   const raw = localStorage.getItem(key);
   if (!raw) {
@@ -32,31 +24,26 @@ function readJson<T>(key: string, fallback: T): T {
 }
 
 export async function loadSettings(): Promise<AppSettings> {
-  const settings = await invokeIfAvailable<unknown>("load_settings");
-
-  if (settings) {
+  if (isTauriRuntime()) {
+    const settings = await invoke<unknown>("load_settings");
     return normalizeSettings(settings);
   }
-
   return normalizeSettings(readJson(SETTINGS_KEY, DEFAULT_SETTINGS));
 }
 
 export async function saveSettings(settings: AppSettings): Promise<void> {
   const normalized = normalizeSettings(settings);
-  const result = await invokeIfAvailable<void>("save_settings", { settings: normalized });
-
-  if (result === null) {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(normalized));
+  if (isTauriRuntime()) {
+    await invoke<void>("save_settings", { settings: normalized });
+    return;
   }
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(normalized));
 }
 
 export async function loadHistory(): Promise<HistoryItem[]> {
-  const history = await invokeIfAvailable<HistoryItem[]>("load_history");
-
-  if (history) {
-    return history;
+  if (isTauriRuntime()) {
+    return invoke<HistoryItem[]>("load_history");
   }
-
   return readJson<HistoryItem[]>(HISTORY_KEY, []);
 }
 
@@ -69,25 +56,25 @@ export async function saveHistory(history: HistoryItem[]): Promise<void> {
     status: item.status,
     createdAt: item.createdAt,
   }));
-  const result = await invokeIfAvailable<void>("save_history", { history: textOnlyHistory });
-
-  if (result === null) {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(textOnlyHistory));
+  if (isTauriRuntime()) {
+    await invoke<void>("save_history", { history: textOnlyHistory });
+    return;
   }
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(textOnlyHistory));
 }
 
 export async function copyText(text: string): Promise<void> {
-  const result = await invokeIfAvailable<void>("copy_text", { text });
-
-  if (result === null) {
-    await navigator.clipboard.writeText(text);
+  if (isTauriRuntime()) {
+    await invoke<void>("copy_text", { text });
+    return;
   }
+  await navigator.clipboard.writeText(text);
 }
 
 export async function insertText(text: string): Promise<void> {
-  const result = await invokeIfAvailable<void>("insert_text", { text });
-
-  if (result === null) {
-    await navigator.clipboard.writeText(text);
+  if (isTauriRuntime()) {
+    await invoke<void>("insert_text", { text });
+    return;
   }
+  await navigator.clipboard.writeText(text);
 }
