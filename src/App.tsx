@@ -3,12 +3,13 @@ import {
   Clipboard,
   Keyboard,
   Mic,
-  Play,
+  Plus,
   RefreshCcw,
   Save,
   Send,
-  Settings,
+  Settings as SettingsIcon,
   Square,
+  X,
 } from "lucide-react";
 import { addHistoryItem, createHistoryItem, type HistoryItem } from "./domain/history";
 import { polishWithOpenAICompatible } from "./domain/llm";
@@ -78,6 +79,7 @@ export function App() {
   const [message, setMessage] = useState("准备录音。");
   const [customTemplateName, setCustomTemplateName] = useState("");
   const [customTemplatePrompt, setCustomTemplatePrompt] = useState("请改写以下内容：\n{{input}}");
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const recorderRef = useRef<PcmRecorder | null>(null);
   const asrHandleRef = useRef<AsrSessionHandle | null>(null);
@@ -116,6 +118,19 @@ export function App() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!settingsOpen) {
+      return;
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSettingsOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [settingsOpen]);
 
   async function persistHistory(nextHistory: HistoryItem[]) {
     setHistory(nextHistory);
@@ -378,6 +393,7 @@ export function App() {
     setSelectedTemplateId(normalized.defaultTemplateId);
     await saveSettings(normalized);
     setMessage("设置已保存。");
+    setSettingsOpen(false);
   }
 
   async function handleAddCustomTemplate() {
@@ -416,7 +432,18 @@ export function App() {
           <p className="eyebrow">Voice Input Assistant</p>
           <h1>语音输入助手</h1>
         </div>
-        <div className={`status-pill status-${status}`}>{STATUS_LABELS[status]}</div>
+        <div className="topbar-actions">
+          <div className={`status-pill status-${status}`}>{STATUS_LABELS[status]}</div>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="打开设置"
+          >
+            <SettingsIcon size={18} />
+            设置
+          </button>
+        </div>
       </header>
 
       <section className="workspace">
@@ -515,166 +542,10 @@ export function App() {
         </section>
 
         <aside className="side-column">
-          <section className="panel settings-panel" aria-label="设置">
-            <div className="section-title">
-              <h2>设置</h2>
-              <Settings size={18} />
-            </div>
-
-            <label>
-              <span>LLM Base URL</span>
-              <input
-                value={settings.llm.baseUrl}
-                onChange={(event) =>
-                  setSettings((current) => ({
-                    ...current,
-                    llm: { ...current.llm, baseUrl: event.target.value },
-                  }))
-                }
-                placeholder="https://api.example.com/v1"
-              />
-            </label>
-
-            <label>
-              <span>API Key</span>
-              <input
-                type="password"
-                value={settings.llm.apiKey}
-                onChange={(event) =>
-                  setSettings((current) => ({
-                    ...current,
-                    llm: { ...current.llm, apiKey: event.target.value },
-                  }))
-                }
-                placeholder="sk-..."
-              />
-            </label>
-
-            <label>
-              <span>Model</span>
-              <input
-                value={settings.llm.model}
-                onChange={(event) =>
-                  setSettings((current) => ({
-                    ...current,
-                    llm: { ...current.llm, model: event.target.value },
-                  }))
-                }
-              />
-            </label>
-
-            <label>
-              <span>Temperature</span>
-              <input
-                type="number"
-                min="0"
-                max="2"
-                step="0.1"
-                value={settings.llm.temperature}
-                onChange={(event) =>
-                  setSettings((current) => ({
-                    ...current,
-                    llm: { ...current.llm, temperature: Number(event.target.value) },
-                  }))
-                }
-              />
-            </label>
-
-            <label>
-              <span>STT Provider</span>
-              <select
-                value={settings.stt.provider}
-                onChange={(event) =>
-                  setSettings((current) => ({
-                    ...current,
-                    stt: {
-                      ...current.stt,
-                      provider: event.target.value === "dashscope" ? "dashscope" : "mock",
-                    },
-                  }))
-                }
-              >
-                <option value="dashscope">DashScope (Qwen-ASR)</option>
-                <option value="mock">Mock</option>
-              </select>
-            </label>
-
-            <label>
-              <span>DashScope API Key</span>
-              <input
-                type="password"
-                value={settings.stt.apiKey}
-                onChange={(event) =>
-                  setSettings((current) => ({
-                    ...current,
-                    stt: { ...current.stt, apiKey: event.target.value },
-                  }))
-                }
-                placeholder="sk-..."
-              />
-            </label>
-
-            <label>
-              <span>ASR Model</span>
-              <input
-                value={settings.stt.model}
-                onChange={(event) =>
-                  setSettings((current) => ({
-                    ...current,
-                    stt: { ...current.stt, model: event.target.value },
-                  }))
-                }
-                placeholder="qwen3-asr-flash-realtime"
-              />
-            </label>
-
-            <label>
-              <span>识别语言</span>
-              <input
-                value={settings.stt.language}
-                onChange={(event) =>
-                  setSettings((current) => ({
-                    ...current,
-                    stt: { ...current.stt, language: event.target.value },
-                  }))
-                }
-                placeholder="zh"
-              />
-            </label>
-
-            <div className="subsection">
-              <h3>自定义模板</h3>
-              <label>
-                <span>自定义模板名称</span>
-                <input
-                  value={customTemplateName}
-                  onChange={(event) => setCustomTemplateName(event.target.value)}
-                  placeholder="例如：小红书笔记"
-                />
-              </label>
-              <label>
-                <span>自定义提示词</span>
-                <textarea
-                  value={customTemplatePrompt}
-                  onChange={(event) => setCustomTemplatePrompt(event.target.value)}
-                />
-              </label>
-              <button type="button" onClick={handleAddCustomTemplate}>
-                <Play size={16} />
-                添加模板
-              </button>
-            </div>
-
-            <button type="button" onClick={handleSaveSettings}>
-              <Save size={16} />
-              保存设置
-            </button>
-          </section>
-
           <section className="panel history-panel" aria-label="最近历史">
             <h2>最近历史</h2>
             {history.length === 0 ? (
-              <p className="empty">暂无历史记录。</p>
+              <p className="empty">暂无历史记录，开始你的第一段录音吧。</p>
             ) : (
               <ol className="history-list">
                 {history.map((item) => (
@@ -697,6 +568,215 @@ export function App() {
           </section>
         </aside>
       </section>
+
+      {settingsOpen ? (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="设置"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setSettingsOpen(false);
+            }
+          }}
+        >
+          <div className="modal-card">
+            <header className="modal-header">
+              <div>
+                <p className="modal-eyebrow">偏好与连接</p>
+                <h2>设置</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button modal-close"
+                onClick={() => setSettingsOpen(false)}
+                aria-label="关闭设置"
+              >
+                <X size={18} />
+              </button>
+            </header>
+
+            <div className="modal-body">
+              <section className="form-group">
+                <header className="form-group-header">
+                  <h3>语音识别</h3>
+                  <p>选择 ASR 服务并填入凭据，DashScope 走百炼 Qwen-ASR-Realtime。</p>
+                </header>
+                <div className="form-grid">
+                  <label>
+                    <span>STT Provider</span>
+                    <select
+                      value={settings.stt.provider}
+                      onChange={(event) =>
+                        setSettings((current) => ({
+                          ...current,
+                          stt: {
+                            ...current.stt,
+                            provider:
+                              event.target.value === "dashscope" ? "dashscope" : "mock",
+                          },
+                        }))
+                      }
+                    >
+                      <option value="dashscope">DashScope (Qwen-ASR)</option>
+                      <option value="mock">Mock</option>
+                    </select>
+                  </label>
+
+                  <label>
+                    <span>DashScope API Key</span>
+                    <input
+                      type="password"
+                      value={settings.stt.apiKey}
+                      onChange={(event) =>
+                        setSettings((current) => ({
+                          ...current,
+                          stt: { ...current.stt, apiKey: event.target.value },
+                        }))
+                      }
+                      placeholder="sk-..."
+                    />
+                  </label>
+
+                  <label>
+                    <span>ASR Model</span>
+                    <input
+                      value={settings.stt.model}
+                      onChange={(event) =>
+                        setSettings((current) => ({
+                          ...current,
+                          stt: { ...current.stt, model: event.target.value },
+                        }))
+                      }
+                      placeholder="qwen3-asr-flash-realtime"
+                    />
+                  </label>
+
+                  <label>
+                    <span>识别语言</span>
+                    <input
+                      value={settings.stt.language}
+                      onChange={(event) =>
+                        setSettings((current) => ({
+                          ...current,
+                          stt: { ...current.stt, language: event.target.value },
+                        }))
+                      }
+                      placeholder="zh"
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section className="form-group">
+                <header className="form-group-header">
+                  <h3>AI 润色</h3>
+                  <p>OpenAI 兼容接口，留空则跳过润色，直接输出识别原文。</p>
+                </header>
+                <div className="form-grid">
+                  <label>
+                    <span>LLM Base URL</span>
+                    <input
+                      value={settings.llm.baseUrl}
+                      onChange={(event) =>
+                        setSettings((current) => ({
+                          ...current,
+                          llm: { ...current.llm, baseUrl: event.target.value },
+                        }))
+                      }
+                      placeholder="https://api.example.com/v1"
+                    />
+                  </label>
+
+                  <label>
+                    <span>API Key</span>
+                    <input
+                      type="password"
+                      value={settings.llm.apiKey}
+                      onChange={(event) =>
+                        setSettings((current) => ({
+                          ...current,
+                          llm: { ...current.llm, apiKey: event.target.value },
+                        }))
+                      }
+                      placeholder="sk-..."
+                    />
+                  </label>
+
+                  <label>
+                    <span>Model</span>
+                    <input
+                      value={settings.llm.model}
+                      onChange={(event) =>
+                        setSettings((current) => ({
+                          ...current,
+                          llm: { ...current.llm, model: event.target.value },
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label>
+                    <span>Temperature</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value={settings.llm.temperature}
+                      onChange={(event) =>
+                        setSettings((current) => ({
+                          ...current,
+                          llm: { ...current.llm, temperature: Number(event.target.value) },
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section className="form-group">
+                <header className="form-group-header">
+                  <h3>自定义模板</h3>
+                  <p>使用 {`{{input}}`} 占位识别文本，保存后会自动加入润色模板下拉。</p>
+                </header>
+                <div className="form-grid">
+                  <label>
+                    <span>自定义模板名称</span>
+                    <input
+                      value={customTemplateName}
+                      onChange={(event) => setCustomTemplateName(event.target.value)}
+                      placeholder="例如：小红书笔记"
+                    />
+                  </label>
+                </div>
+                <label>
+                  <span>自定义提示词</span>
+                  <textarea
+                    value={customTemplatePrompt}
+                    onChange={(event) => setCustomTemplatePrompt(event.target.value)}
+                  />
+                </label>
+                <button type="button" className="ghost-button" onClick={handleAddCustomTemplate}>
+                  <Plus size={16} />
+                  添加模板
+                </button>
+              </section>
+            </div>
+
+            <footer className="modal-footer">
+              <button type="button" className="ghost-button" onClick={() => setSettingsOpen(false)}>
+                取消
+              </button>
+              <button type="button" className="primary-button" onClick={handleSaveSettings}>
+                <Save size={16} />
+                保存设置
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
