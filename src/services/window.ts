@@ -3,9 +3,19 @@ import { isTauriRuntime } from "./tauri";
 
 export type WindowMode = "compact" | "full";
 
-export async function setWindowMode(mode: WindowMode): Promise<void> {
+export type SetWindowModeOptions = {
+  alwaysOnTop?: boolean;
+};
+
+export async function setWindowMode(
+  mode: WindowMode,
+  options: SetWindowModeOptions = {},
+): Promise<void> {
   if (!isTauriRuntime()) {
     return;
   }
-  await invoke<void>("set_window_mode", { mode });
+  await invoke<void>("set_window_mode", {
+    mode,
+    alwaysOnTop: options.alwaysOnTop,
+  });
 }

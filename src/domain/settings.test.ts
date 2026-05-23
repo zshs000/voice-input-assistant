@@ -15,6 +15,7 @@ describe("settings", () => {
     expect(DEFAULT_SETTINGS.stt.provider).toBe("dashscope");
     expect(DEFAULT_SETTINGS.stt.model).toBe(DEFAULT_DASHSCOPE_MODEL);
     expect(DEFAULT_SETTINGS.stt.language).toBe(DEFAULT_DASHSCOPE_LANGUAGE);
+    expect(DEFAULT_SETTINGS.compactAlwaysOnTop).toBe(true);
   });
 
   it("normalizes partial persisted settings", () => {
@@ -62,5 +63,11 @@ describe("settings", () => {
   it("rejects unknown stt provider and falls back to mock", () => {
     const settings = normalizeSettings({ stt: { provider: "azure" } });
     expect(settings.stt.provider).toBe("mock");
+  });
+
+  it("keeps compactAlwaysOnTop boolean and falls back to true otherwise", () => {
+    expect(normalizeSettings({ compactAlwaysOnTop: false }).compactAlwaysOnTop).toBe(false);
+    expect(normalizeSettings({ compactAlwaysOnTop: "yes" }).compactAlwaysOnTop).toBe(true);
+    expect(normalizeSettings({}).compactAlwaysOnTop).toBe(true);
   });
 });

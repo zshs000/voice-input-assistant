@@ -29,6 +29,7 @@ export type AppSettings = {
   outputMode: OutputMode;
   hotkey: string;
   customTemplates: PromptTemplate[];
+  compactAlwaysOnTop: boolean;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -49,6 +50,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   outputMode: "copy",
   hotkey: "Ctrl+Alt+Space",
   customTemplates: [],
+  compactAlwaysOnTop: true,
 };
 
 function normalizeTemperature(value: unknown): number {
@@ -119,6 +121,10 @@ export function normalizeSettings(value: unknown): AppSettings {
         ? input.hotkey.trim()
         : DEFAULT_SETTINGS.hotkey,
     customTemplates,
+    compactAlwaysOnTop:
+      typeof input.compactAlwaysOnTop === "boolean"
+        ? input.compactAlwaysOnTop
+        : DEFAULT_SETTINGS.compactAlwaysOnTop,
   };
 }
 

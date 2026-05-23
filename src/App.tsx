@@ -407,7 +407,9 @@ export function App() {
   async function toggleWindowMode() {
     const next: WindowMode = windowMode === "full" ? "compact" : "full";
     try {
-      await applyWindowMode(next);
+      await applyWindowMode(next, {
+        alwaysOnTop: settings.compactAlwaysOnTop,
+      });
       setWindowMode(next);
       if (next === "compact") {
         setSettingsOpen(false);
@@ -518,9 +520,8 @@ export function App() {
   if (windowMode === "compact") {
     const compactLabel = status === "recording" ? "结束录音" : "开始录音";
     return (
-      <div className={`compact-shell status-shell-${status}`}>
+      <div className={`compact-shell status-shell-${status}`} data-tauri-drag-region>
         <div className="compact-dragbar" data-tauri-drag-region>
-          <span className="compact-title">语音输入</span>
           <button
             type="button"
             className="compact-action"
@@ -539,10 +540,17 @@ export function App() {
           aria-label={compactLabel}
           title={compactLabel}
         >
-          {status === "recording" ? <Square size={26} /> : <Mic size={26} />}
+          {status === "recording" ? <Square size={28} /> : <Mic size={28} />}
         </button>
-        <p className="compact-status">{STATUS_LABELS[status]}</p>
-        <p className="compact-message" title={message}>{message}</p>
+        <p className="compact-status" title={message} data-tauri-drag-region>
+          <span className="compact-status-label" data-tauri-drag-region>
+            {STATUS_LABELS[status]}
+          </span>
+          <span className="compact-status-sep" data-tauri-drag-region>·</span>
+          <span className="compact-status-message" data-tauri-drag-region>
+            {message}
+          </span>
+        </p>
       </div>
     );
   }
@@ -865,6 +873,29 @@ export function App() {
                     />
                   </label>
                 </div>
+              </section>
+
+              <section className="form-group">
+                <header className="form-group-header">
+                  <h3>界面行为</h3>
+                  <p>控制小窗口的显示方式，下次切换到小窗口时生效。</p>
+                </header>
+                <label className="form-toggle">
+                  <input
+                    type="checkbox"
+                    checked={settings.compactAlwaysOnTop}
+                    onChange={(event) =>
+                      setSettings((current) => ({
+                        ...current,
+                        compactAlwaysOnTop: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>
+                    <strong>小窗口常驻最上层</strong>
+                    <em>开启后小窗口始终浮在其他窗口之上，方便边录边切应用</em>
+                  </span>
+                </label>
               </section>
 
               <section className="form-group">
