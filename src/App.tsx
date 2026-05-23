@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Clipboard,
   Keyboard,
+  Maximize2,
   Mic,
+  Minimize2,
   Pencil,
   Plus,
   RefreshCcw,
@@ -44,6 +46,7 @@ import {
 } from "./services/tauri";
 import { PcmRecorder } from "./services/recorder";
 import { startAsrSession, type AsrSessionHandle } from "./services/asr";
+import { setWindowMode as applyWindowMode, type WindowMode } from "./services/window";
 
 type AppStatus = "idle" | "recording" | "recognizing" | "polishing" | "completed" | "failed";
 
@@ -87,6 +90,7 @@ export function App() {
   const [customTemplatePrompt, setCustomTemplatePrompt] = useState("请改写以下内容：\n{{input}}");
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [windowMode, setWindowMode] = useState<WindowMode>("full");
 
   const recorderRef = useRef<PcmRecorder | null>(null);
   const asrHandleRef = useRef<AsrSessionHandle | null>(null);
@@ -400,6 +404,19 @@ export function App() {
     setMessage("已尝试插入；如果目标窗口未接收，可手动粘贴剪贴板内容。");
   }
 
+  async function toggleWindowMode() {
+    const next: WindowMode = windowMode === "full" ? "compact" : "full";
+    try {
+      await applyWindowMode(next);
+      setWindowMode(next);
+      if (next === "compact") {
+        setSettingsOpen(false);
+      }
+    } catch (error) {
+      setMessage(toErrorMessage(error, "切换窗口模式失败。"));
+    }
+  }
+
   async function handleSaveSettings() {
     const normalized = normalizeSettings({ ...settings, defaultTemplateId: selectedTemplateId });
     setSettings(normalized);
@@ -498,6 +515,38 @@ export function App() {
     setCustomTemplatePrompt("请改写以下内容：\n{{input}}");
   }
 
+  if (windowMode === "compact") {
+    const compactLabel = status === "recording" ? "结束录音" : "开始录音";
+    return (
+      <div className={`compact-shell status-shell-${status}`}>
+        <div className="compact-dragbar" data-tauri-drag-region>
+          <span className="compact-title">语音输入</span>
+          <button
+            type="button"
+            className="compact-action"
+            onClick={toggleWindowMode}
+            aria-label="展开主窗口"
+            title="展开主窗口"
+          >
+            <Maximize2 size={14} />
+          </button>
+        </div>
+        <button
+          type="button"
+          className={`compact-record status-${status}`}
+          onClick={handleRecordClick}
+          aria-pressed={status === "recording"}
+          aria-label={compactLabel}
+          title={compactLabel}
+        >
+          {status === "recording" ? <Square size={26} /> : <Mic size={26} />}
+        </button>
+        <p className="compact-status">{STATUS_LABELS[status]}</p>
+        <p className="compact-message" title={message}>{message}</p>
+      </div>
+    );
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -507,6 +556,15 @@ export function App() {
         </div>
         <div className="topbar-actions">
           <div className={`status-pill status-${status}`}>{STATUS_LABELS[status]}</div>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={toggleWindowMode}
+            aria-label="切换为小窗口"
+            title="切换为小窗口"
+          >
+            <Minimize2 size={18} />
+          </button>
           <button
             type="button"
             className="icon-button"

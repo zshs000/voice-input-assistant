@@ -660,6 +660,136 @@ h3 {
   justify-content: flex-end;
 }
 
+/* ===== Compact window ===== */
+
+.compact-shell {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  justify-items: center;
+  align-content: start;
+  gap: 6px;
+  width: 100vw;
+  height: 100vh;
+  padding: 0 14px 12px;
+  background:
+    radial-gradient(120% 90% at 50% 0%, #ffffff 0%, #eef4f6 100%);
+  color: #1c2428;
+  border-radius: 18px;
+  border: 1px solid #cdd9dd;
+  box-shadow: 0 18px 38px rgb(20 30 34 / 22%);
+  overflow: hidden;
+  user-select: none;
+}
+
+.compact-dragbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  align-self: stretch;
+  height: 28px;
+  padding: 0 4px 0 10px;
+  color: #46565c;
+  font-size: 12px;
+  cursor: grab;
+}
+
+.compact-dragbar:active {
+  cursor: grabbing;
+}
+
+.compact-title {
+  color: #46565c;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.compact-action {
+  min-height: 24px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  border-color: transparent;
+  background: rgb(255 255 255 / 70%);
+  color: #2c3a40;
+}
+
+.compact-action:hover:not(:disabled) {
+  background: #ffffff;
+  border-color: #cbd6da;
+}
+
+.compact-record {
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border-radius: 50%;
+  color: #ffffff;
+  background: linear-gradient(135deg, #1f6f78 0%, #2a8a96 100%);
+  border-color: #1f6f78;
+  box-shadow: 0 10px 22px rgb(31 111 120 / 32%);
+  align-self: center;
+}
+
+.compact-record:hover:not(:disabled) {
+  background: linear-gradient(135deg, #185b62 0%, #20727e 100%);
+  border-color: #185b62;
+}
+
+.compact-record.status-recording {
+  background: linear-gradient(135deg, #ad3b3b 0%, #c25151 100%);
+  border-color: #ad3b3b;
+  box-shadow: 0 10px 22px rgb(173 59 59 / 32%);
+  animation: compact-pulse 1.4s ease-in-out infinite;
+}
+
+.compact-record.status-recognizing,
+.compact-record.status-polishing {
+  background: linear-gradient(135deg, #b8862b 0%, #d9a039 100%);
+  border-color: #b8862b;
+  box-shadow: 0 10px 22px rgb(184 134 43 / 32%);
+}
+
+.compact-record.status-completed {
+  background: linear-gradient(135deg, #28734b 0%, #339360 100%);
+  border-color: #28734b;
+  box-shadow: 0 10px 22px rgb(40 115 75 / 32%);
+}
+
+.compact-record.status-failed {
+  background: linear-gradient(135deg, #ad3b3b 0%, #d05858 100%);
+  border-color: #ad3b3b;
+}
+
+.compact-status {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c3a40;
+}
+
+.compact-message {
+  margin: 0;
+  max-width: 100%;
+  color: #607178;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes compact-pulse {
+  0%, 100% {
+    box-shadow: 0 10px 22px rgb(173 59 59 / 32%);
+  }
+  50% {
+    box-shadow: 0 10px 22px rgb(173 59 59 / 32%), 0 0 0 6px rgb(173 59 59 / 18%);
+  }
+}
+
 @media (max-width: 920px) {
   .app-shell {
     padding: 16px;

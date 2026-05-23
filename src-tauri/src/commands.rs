@@ -218,6 +218,41 @@ pub async fn insert_text(
     Ok(())
 }
 
+#[tauri::command]
+pub async fn set_window_mode(
+    mode: String,
+    window: tauri::WebviewWindow,
+) -> Result<(), String> {
+    use tauri::{LogicalSize, Size};
+
+    let (size, decorations, always_on_top, skip_taskbar, resizable) = match mode.as_str() {
+        "compact" => (LogicalSize::new(280.0, 160.0), false, true, true, false),
+        "full" => (LogicalSize::new(1120.0, 760.0), true, false, false, true),
+        other => return Err(format!("未知窗口模式：{other}")),
+    };
+
+    window
+        .set_size(Size::Logical(size))
+        .map_err(|error| format!("调整窗口大小失败：{error}"))?;
+    window
+        .set_decorations(decorations)
+        .map_err(|error| format!("调整窗口边框失败：{error}"))?;
+    window
+        .set_always_on_top(always_on_top)
+        .map_err(|error| format!("调整置顶失败：{error}"))?;
+    window
+        .set_skip_taskbar(skip_taskbar)
+        .map_err(|error| format!("调整任务栏可见性失败：{error}"))?;
+    window
+        .set_resizable(resizable)
+        .map_err(|error| format!("调整窗口可调整大小失败：{error}"))?;
+    window
+        .center()
+        .map_err(|error| format!("窗口居中失败：{error}"))?;
+
+    Ok(())
+}
+
 fn new_event_id() -> String {
     format!("event_{}", uuid::Uuid::new_v4().simple())
 }

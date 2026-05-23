@@ -19,6 +19,7 @@ pub fn run() {
             commands::save_history,
             commands::copy_text,
             commands::insert_text,
+            commands::set_window_mode,
             commands::asr_start,
             commands::asr_append_audio,
             commands::asr_stop,
