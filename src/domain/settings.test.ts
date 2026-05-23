@@ -70,4 +70,12 @@ describe("settings", () => {
     expect(normalizeSettings({ compactAlwaysOnTop: "yes" }).compactAlwaysOnTop).toBe(true);
     expect(normalizeSettings({}).compactAlwaysOnTop).toBe(true);
   });
+
+  it("keeps hotkeyMode and falls back to toggle otherwise", () => {
+    expect(DEFAULT_SETTINGS.hotkeyMode).toBe("toggle");
+    expect(normalizeSettings({ hotkeyMode: "hold" }).hotkeyMode).toBe("hold");
+    expect(normalizeSettings({ hotkeyMode: "toggle" }).hotkeyMode).toBe("toggle");
+    expect(normalizeSettings({ hotkeyMode: "invalid" }).hotkeyMode).toBe("toggle");
+    expect(normalizeSettings({}).hotkeyMode).toBe("toggle");
+  });
 });

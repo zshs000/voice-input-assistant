@@ -100,6 +100,10 @@ export function App() {
   const partialTranscriptRef = useRef<string>("");
   const handleRecordClickRef = useRef<() => Promise<void>>(async () => {});
   const recordingStartedAtRef = useRef<number>(0);
+  const statusRef = useRef<AppStatus>("idle");
+  const startRecordingFlowRef = useRef<() => Promise<void>>(async () => {});
+  const stopRecordingFlowRef = useRef<() => Promise<void>>(async () => {});
+  const isHoldPressedRef = useRef<boolean>(false);
 
   const templates = useMemo(() => getAvailableTemplates(settings.customTemplates), [settings.customTemplates]);
   const selectedTemplate = useMemo(
@@ -155,6 +159,9 @@ export function App() {
 
   useEffect(() => {
     handleRecordClickRef.current = handleRecordClick;
+    statusRef.current = status;
+    startRecordingFlowRef.current = startRecordingFlow;
+    stopRecordingFlowRef.current = stopRecordingFlow;
   });
 
   useEffect(() => {
@@ -165,15 +172,41 @@ export function App() {
     if (!accelerator) {
       return;
     }
+    const mode = settings.hotkeyMode;
 
     let cancelled = false;
+    isHoldPressedRef.current = false;
 
     (async () => {
       try {
         await registerShortcut(accelerator, (event) => {
           if (cancelled) return;
-          if (event.state !== "Pressed") return;
-          void handleRecordClickRef.current();
+
+          if (mode === "toggle") {
+            if (event.state === "Pressed") {
+              void handleRecordClickRef.current();
+            }
+            return;
+          }
+
+          // hold 模式：按下开始 / 松开停止
+          if (event.state === "Pressed") {
+            if (isHoldPressedRef.current) return;
+            isHoldPressedRef.current = true;
+            void (async () => {
+              await startRecordingFlowRef.current();
+              // 启动期间用户已经松手，立即停止
+              if (!isHoldPressedRef.current && statusRef.current === "recording") {
+                await stopRecordingFlowRef.current();
+              }
+            })();
+          } else if (event.state === "Released") {
+            if (!isHoldPressedRef.current) return;
+            isHoldPressedRef.current = false;
+            if (statusRef.current === "recording") {
+              void stopRecordingFlowRef.current();
+            }
+          }
         });
       } catch (error) {
         setMessage(
@@ -184,11 +217,12 @@ export function App() {
 
     return () => {
       cancelled = true;
+      isHoldPressedRef.current = false;
       unregisterShortcut(accelerator).catch(() => {
         // 忽略反注册失败：通常是窗口正在关闭
       });
     };
-  }, [settings.hotkey]);
+  }, [settings.hotkey, settings.hotkeyMode]);
 
   async function persistHistory(nextHistory: HistoryItem[]) {
     setHistory(nextHistory);
@@ -377,41 +411,7 @@ export function App() {
     return finalText;
   }
 
-  async function handleRecordClick() {
-    if (status === "recording") {
-      const durationMs = Date.now() - recordingStartedAtRef.current;
-      if (isRecordingTooShort(durationMs)) {
-        setStatus("idle");
-        setMessage(`录音时长不足 ${MIN_RECORDING_DURATION_MS} 毫秒，已忽略。`);
-        await cleanupAsr();
-        return;
-      }
-
-      setStatus("recognizing");
-      setMessage("正在等待最终识别结果。");
-
-      try {
-        if (settings.stt.provider === "mock") {
-          setRecognizedText(MOCK_RECOGNIZED_TEXT);
-          await completeInput(MOCK_RECOGNIZED_TEXT, selectedTemplate);
-          return;
-        }
-
-        const text = await stopDashscopeRecording();
-        if (!text.trim()) {
-          setStatus("failed");
-          setMessage("未识别到有效语音。");
-          return;
-        }
-        await completeInput(text, selectedTemplate);
-      } catch (error) {
-        setStatus("failed");
-        setMessage(toErrorMessage(error, "录音处理失败。"));
-        await cleanupAsr();
-      }
-      return;
-    }
-
+  async function startRecordingFlow() {
     try {
       setRecognizedText("");
       setFinalText("");
@@ -428,6 +428,47 @@ export function App() {
       setStatus("failed");
       setMessage(toErrorMessage(error, "无法开始录音。"));
       await cleanupAsr();
+    }
+  }
+
+  async function stopRecordingFlow() {
+    const durationMs = Date.now() - recordingStartedAtRef.current;
+    if (isRecordingTooShort(durationMs)) {
+      setStatus("idle");
+      setMessage(`录音时长不足 ${MIN_RECORDING_DURATION_MS} 毫秒，已忽略。`);
+      await cleanupAsr();
+      return;
+    }
+
+    setStatus("recognizing");
+    setMessage("正在等待最终识别结果。");
+
+    try {
+      if (settings.stt.provider === "mock") {
+        setRecognizedText(MOCK_RECOGNIZED_TEXT);
+        await completeInput(MOCK_RECOGNIZED_TEXT, selectedTemplate);
+        return;
+      }
+
+      const text = await stopDashscopeRecording();
+      if (!text.trim()) {
+        setStatus("failed");
+        setMessage("未识别到有效语音。");
+        return;
+      }
+      await completeInput(text, selectedTemplate);
+    } catch (error) {
+      setStatus("failed");
+      setMessage(toErrorMessage(error, "录音处理失败。"));
+      await cleanupAsr();
+    }
+  }
+
+  async function handleRecordClick() {
+    if (status === "recording") {
+      await stopRecordingFlow();
+    } else {
+      await startRecordingFlow();
     }
   }
 
@@ -983,6 +1024,27 @@ export function App() {
                     }
                     placeholder="Ctrl+Alt+Space"
                   />
+                </label>
+                <label>
+                  <span>
+                    快捷键模式
+                    <em className="field-hint">
+                      <strong>切换</strong>：按一下开始，再按一下停。
+                      <strong>按住</strong>：按下开始、松开停止，类似对讲机/微信语音。
+                    </em>
+                  </span>
+                  <select
+                    value={settings.hotkeyMode}
+                    onChange={(event) =>
+                      setSettings((current) => ({
+                        ...current,
+                        hotkeyMode: event.target.value === "hold" ? "hold" : "toggle",
+                      }))
+                    }
+                  >
+                    <option value="toggle">切换（按一下切换）</option>
+                    <option value="hold">按住（对讲）</option>
+                  </select>
                 </label>
               </section>
 

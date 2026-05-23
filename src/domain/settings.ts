@@ -2,6 +2,8 @@ import { ORIGINAL_TEMPLATE_ID, type PromptTemplate } from "./templates";
 
 export type OutputMode = "copy" | "insert" | "copy-and-insert";
 
+export type HotkeyMode = "toggle" | "hold";
+
 export type LlmSettings = {
   baseUrl: string;
   apiKey: string;
@@ -28,6 +30,7 @@ export type AppSettings = {
   defaultTemplateId: string;
   outputMode: OutputMode;
   hotkey: string;
+  hotkeyMode: HotkeyMode;
   customTemplates: PromptTemplate[];
   compactAlwaysOnTop: boolean;
 };
@@ -49,6 +52,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultTemplateId: "clean",
   outputMode: "copy",
   hotkey: "Ctrl+Alt+Space",
+  hotkeyMode: "toggle",
   customTemplates: [],
   compactAlwaysOnTop: true,
 };
@@ -120,6 +124,7 @@ export function normalizeSettings(value: unknown): AppSettings {
       typeof input.hotkey === "string" && input.hotkey.trim()
         ? input.hotkey.trim()
         : DEFAULT_SETTINGS.hotkey,
+    hotkeyMode: input.hotkeyMode === "hold" ? "hold" : "toggle",
     customTemplates,
     compactAlwaysOnTop:
       typeof input.compactAlwaysOnTop === "boolean"
