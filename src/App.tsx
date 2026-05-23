@@ -454,6 +454,16 @@ export function App() {
     setMessage("已尝试插入；如果目标窗口未接收，可手动粘贴剪贴板内容。");
   }
 
+  async function handleClearHistory() {
+    if (history.length === 0) return;
+    const confirmed = window.confirm(
+      `确认清空所有历史记录吗？共 ${history.length} 条，此操作不可撤销。`,
+    );
+    if (!confirmed) return;
+    await persistHistory([]);
+    setMessage("历史记录已清空。");
+  }
+
   async function toggleWindowMode() {
     const next: WindowMode = windowMode === "full" ? "compact" : "full";
     try {
@@ -732,7 +742,20 @@ export function App() {
 
         <aside className="side-column">
           <section className="panel history-panel" aria-label="最近历史">
-            <h2>最近历史</h2>
+            <div className="section-title">
+              <h2>最近历史</h2>
+              {history.length > 0 ? (
+                <button
+                  type="button"
+                  className="history-clear"
+                  onClick={handleClearHistory}
+                  aria-label="清空历史记录"
+                >
+                  <Trash2 size={14} />
+                  清空
+                </button>
+              ) : null}
+            </div>
             {history.length === 0 ? (
               <p className="empty">暂无历史记录，开始你的第一段录音吧。</p>
             ) : (
