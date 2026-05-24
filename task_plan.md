@@ -1,34 +1,32 @@
-# Project Review And Documentation Cleanup Plan
+# App Component Split Plan
 
 ## Goal
 
-完整阅读当前项目，整理失真的文档与代码，在根目录输出审查意见。
+在不改变功能和交互语义的前提下，拆分过大的 `src/App.tsx`，把 JSX 视图拆到小组件中，保留现有状态与业务流程。
 
 ## Concrete Deliverables
 
-- 梳理当前源码、配置、测试、Tauri 后端与文档的真实状态。
-- 归档不再适合作为当前主文档的旧文档、交接文档和阶段计划。
-- 重写保留的关键文档，使其匹配当前实现。
-- 对代码做低风险整理，修正明显命名、结构或文档不一致问题。
-- 在根目录新增或更新项目审查意见文档。
-- 运行能覆盖当前项目健康度的验证命令。
+- 新增 `src/components/` 下的展示组件。
+- `src/App.tsx` 保留应用状态、effects、录音、ASR、输出、持久化和模板操作逻辑。
+- 精灵窗口、小窗口、主工作区、设置弹窗从 `App.tsx` 中提取。
+- 不主动调整 CSS 和业务行为。
+- 使用现有测试、类型检查、构建和 Rust check 验证功能未破坏。
 
 ## Phases
 
 | Phase | Status | Evidence |
 | --- | --- | --- |
-| 1. Recover current state and prior notes | complete | Read existing planning files, repo status, package/Cargo metadata, docs list |
-| 2. Read project code and docs | complete | Source/config/docs findings recorded in `findings.md` |
-| 3. Decide documentation archive/rewrite map | complete | Archived old plan/handoff/agent docs under `docs/archive` |
-| 4. Apply documentation and code cleanup | complete | Rewrote current docs, added root review, added `typecheck`, fixed STT provider normalization |
-| 5. Verification and completion audit | complete | `npm run typecheck`, `npm test`, `npm run build`, `cargo check --manifest-path src-tauri\Cargo.toml` passed; checklist in `PROJECT_REVIEW.md` |
+| 1. Baseline and split boundaries | complete | Reviewed `App.tsx`, `App.test.tsx`, current branch status, and render branch boundaries |
+| 2. Extract shared UI types and components | complete | Added `appUi`, `SpiritWindow`, `CompactWindow`, `MainWorkspace`, `SettingsModal` |
+| 3. Rewire `App.tsx` container | complete | Replaced inline render branches with component calls; side effects remain in `App.tsx` |
+| 4. Verification | complete | `npm run typecheck`, `npm test`, `npm run build`, `cargo check --manifest-path src-tauri\Cargo.toml` passed |
 
 ## Decisions
 
-- Treat current worktree as authoritative.
-- Preserve unrelated user changes; `.gitignore` already has an uncommitted change.
-- Do not rely on previous MVP plan as completion evidence for this review/cleanup goal.
-- Keep review artifacts in the root as requested.
+- Use container/presenter split only; do not introduce new state library or custom hooks in this pass.
+- Keep all side effects in `App.tsx`.
+- Let components receive values and callbacks via props.
+- Reuse existing class names and DOM text to preserve UI and tests.
 
 ## Errors Encountered
 

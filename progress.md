@@ -1,5 +1,31 @@
 # Progress Log
 
+## 2026-05-24 App Split
+
+- Started App component split after user approved the conservative design.
+- Read `src/App.tsx` and `src/App.test.tsx`.
+- Established split boundaries:
+  - keep state/effects/recording/ASR/output/persistence in `App.tsx`;
+  - extract `SpiritWindow`, `CompactWindow`, `MainWorkspace`, `SettingsModal`;
+  - share status labels through `src/components/appUi.ts`.
+- Updated `task_plan.md` and `findings.md` for the current task.
+- Added `src/components/appUi.ts`.
+- Added `src/components/SpiritWindow.tsx`.
+- Added `src/components/CompactWindow.tsx`.
+- Added `src/components/MainWorkspace.tsx`.
+- Added `src/components/SettingsModal.tsx`.
+- Replaced `App.tsx` inline render branches with component calls while keeping behavior handlers in `App.tsx`.
+- Ran `npm run typecheck`: passed.
+- Ran `npm test`: 10 files / 39 tests passed.
+- Ran `cargo check --manifest-path src-tauri\Cargo.toml`: passed.
+- Ran `npm run build`: passed.
+- Checked file sizes after split:
+  - `src/App.tsx`: 663 lines.
+  - `src/components/MainWorkspace.tsx`: 228 lines.
+  - `src/components/SettingsModal.tsx`: 391 lines.
+  - `src/components/CompactWindow.tsx`: 67 lines.
+  - `src/components/SpiritWindow.tsx`: 74 lines.
+
 ## 2026-05-24
 
 - Started continuation for the active cleanup/review goal.
