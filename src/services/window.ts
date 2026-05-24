@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { isTauriRuntime } from "./tauri";
 
-export type WindowMode = "compact" | "full";
+export type WindowMode = "compact" | "full" | "spirit";
 
 export type SetWindowModeOptions = {
   alwaysOnTop?: boolean;

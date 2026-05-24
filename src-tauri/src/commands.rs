@@ -247,11 +247,12 @@ pub async fn set_window_mode(
 
     let (size, decorations, default_on_top, skip_taskbar, resizable) = match mode.as_str() {
         "compact" => (LogicalSize::new(280.0, 160.0), false, true, true, false),
+        "spirit" => (LogicalSize::new(220.0, 220.0), false, true, true, false),
         "full" => (LogicalSize::new(1120.0, 760.0), true, false, false, true),
         other => return Err(format!("未知窗口模式：{other}")),
     };
 
-    let on_top = if mode == "compact" {
+    let on_top = if mode == "compact" || mode == "spirit" {
         always_on_top.unwrap_or(default_on_top)
     } else {
         false
