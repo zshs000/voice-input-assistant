@@ -69,6 +69,14 @@ function isOutputMode(value: unknown): value is OutputMode {
   return value === "copy" || value === "insert" || value === "copy-and-insert";
 }
 
+function normalizeSttProvider(value: unknown): SttSettings["provider"] {
+  if (value === undefined || value === null) {
+    return DEFAULT_SETTINGS.stt.provider;
+  }
+
+  return value === "dashscope" || value === "mock" ? value : "mock";
+}
+
 function normalizeBaseUrl(value: unknown): string {
   if (typeof value !== "string") {
     return "";
@@ -94,7 +102,7 @@ export function normalizeSettings(value: unknown): AppSettings {
 
   return {
     stt: {
-      provider: stt.provider === "dashscope" ? "dashscope" : "mock",
+      provider: normalizeSttProvider(stt.provider),
       endpoint: typeof stt.endpoint === "string" ? stt.endpoint.trim() : "",
       apiKey: typeof stt.apiKey === "string" ? stt.apiKey.trim() : "",
       model:

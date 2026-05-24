@@ -1,1 +1,21 @@
 docs/handoff.md
+docs/development-plan.md
+
+# Dependencies
+node_modules/
+
+# Frontend build output
+dist/
+
+# Tauri/Rust build output
+src-tauri/target/
+src-tauri/gen/
+
+# Local agent/tooling state
+.claude/
+
+# Logs and local environment
+*.log
+.env
+.env.*
+!.env.example

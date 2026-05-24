@@ -46,6 +46,7 @@ describe("settings", () => {
     expect(settings.llm.model).toBe(DEFAULT_SETTINGS.llm.model);
     expect(settings.llm.temperature).toBe(2);
     expect(settings.outputMode).toBe("insert");
+    expect(settings.stt.provider).toBe(DEFAULT_SETTINGS.stt.provider);
     expect(settings.customTemplates).toHaveLength(1);
   });
 

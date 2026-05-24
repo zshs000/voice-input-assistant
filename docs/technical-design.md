@@ -1,233 +1,80 @@
 # 语音输入助手技术方案
 
-## 1. 技术目标
+## 技术栈
 
-本项目需要实现一款 Windows 桌面语音输入助手，核心能力包括录音、中文语音识别、AI 场景润色、文本复制、自动插入、历史记录和本地配置管理。
+| 层级 | 当前实现 |
+| --- | --- |
+| 桌面壳 | Tauri 2 |
+| 前端 | React 18 + TypeScript + Vite |
+| 前端状态 | React 本地 state 和 service/domain 模块 |
+| 后端 | Rust Tauri commands |
+| 语音采集 | Web Audio API + AudioWorklet，16 kHz Int16 PCM |
+| ASR | DashScope Qwen-ASR Realtime WebSocket，Mock 兜底模式 |
+| LLM | OpenAI-compatible Chat Completions |
+| 本地数据 | Rust 读写 app data 目录下的 JSON 文件 |
+| 剪贴板/插入 | `arboard` 写剪贴板，Windows 下 `enigo` 模拟粘贴 |
+| 快捷键 | `@tauri-apps/plugin-global-shortcut` |
+| 测试 | Vitest + React Testing Library，Rust 当前以 `cargo check` 为主 |
 
-技术方案需要在以下因素之间取得平衡：
+## 代码结构
 
-- 准确度：语音识别结果尽量准确，AI 润色能够提升文本可用性
-- 易用性：用户通过按钮或快捷键完成输入，不需要理解复杂配置
-- 响应速度：录音结束后尽快得到识别和润色结果
-- 成本：优先使用可控的云端 API，架构预留本地识别和其他模型服务
-- 可扩展性：后续可以加入实时识别、本地模型和更多 LLM 供应商
+```text
+src/
+  App.tsx                 # 主界面和当前工作流编排
+  domain/                 # 模板、设置、历史、录音阈值、LLM 请求等纯逻辑
+  services/               # Tauri bridge、ASR bridge、PCM 录音、窗口模式
+  test/                   # Vitest 测试设置
+src-tauri/
+  src/commands.rs         # Tauri commands、ASR WebSocket、剪贴板/插入/窗口能力
+  src/lib.rs              # Tauri builder、插件、状态和 command 注册
+  capabilities/default.json
+public/pcm-worklet.js     # AudioWorklet PCM 分块处理器
+docs/
+  archive/                # 旧计划/交接/agent 记录
+```
 
-## 2. 技术栈
+## 前端流程
 
-| 模块 | 技术实现 | 作用 |
-| :--- | :--- | :--- |
-| 桌面应用框架 | Tauri 2 | 构建轻量级跨平台桌面应用，提供系统能力调用 |
-| 后端系统层 | Rust | 处理快捷键、剪贴板、自动插入、文件和配置等系统能力 |
-| 前端语言 | TypeScript | 提供类型约束，降低状态和接口调用错误 |
-| 前端框架 | React | 构建录音界面、设置页、历史记录和模板选择等交互界面 |
-| 状态管理 | Recoil | 管理录音状态、识别状态、配置、模板和历史记录 |
-| 构建工具 | Vite | 提供快速开发和前端构建能力 |
-| 语音识别 | STT Provider 抽象 | 先接入云端识别，后续预留本地和流式识别 |
-| AI 润色 | OpenAI-compatible API | 调用大语言模型完成场景化文本优化 |
-| 本地数据 | Tauri Store / 本地 JSON | 保存配置、模板和历史记录 |
+`App.tsx` 负责串联当前主流程：
 
-## 3. 技术栈选择理由
+1. 读取本地设置和历史记录。
+2. 注册全局快捷键。
+3. 根据 STT Provider 开始录音：
+   - `mock`：不采集麦克风，结束后返回固定中文文本。
+   - `dashscope`：创建 `PcmRecorder`，音频分块通过 Tauri command 发往 Rust。
+4. 等待最终识别文本。
+5. 根据模板决定是否调用 LLM。
+6. 按输出模式复制或插入文本。
+7. 写入历史记录。
 
-### 3.1 选择 Tauri 2
+可测试逻辑被拆到 `src/domain` 和 `src/services`，UI 级测试覆盖主界面和设置弹窗的基础可见性。
 
-Tauri 2 适合本项目的原因是它可以用 Web 技术构建界面，同时通过 Rust 调用系统能力。相比完整浏览器壳应用，Tauri 应用体积更小，系统集成能力更强，适合桌面辅助工具。
+## Tauri Command 边界
 
-本项目需要访问麦克风、注册快捷键、操作剪贴板、模拟文本输入和保存本地配置，这些能力由 Tauri 和 Rust 后端承接更合理。
+当前注册的命令：
 
-### 3.2 选择 React + TypeScript
-
-语音输入助手界面虽然不复杂，但状态较多，包括待机、录音、识别、润色、完成、失败等。React 适合快速构建这种状态驱动的交互界面。
-
-TypeScript 可以明确语音识别结果、AI 润色请求、用户配置、历史记录等数据结构，减少开发中的字段错误和接口不一致问题。
-
-### 3.3 选择 Recoil
-
-本项目存在多个页面或组件共享的状态：
-
-- 当前录音状态
-- 当前识别文本
-- 当前润色结果
-- 当前模板
-- 输出方式
-- LLM 配置
-- 最近历史记录
-
-Recoil 可以将这些状态拆成独立 atom 和 selector，避免把所有逻辑堆在单个组件中，也方便后续扩展。
-
-### 3.4 选择 OpenAI-compatible API
-
-AI 润色是本产品的核心亮点。OpenAI-compatible API 的优势是接口格式通用，很多模型服务都支持类似协议。产品只需要先实现一种调用格式，就能兼容多个服务商。
-
-用户可以在设置中配置 Base URL、API Key 和模型名称，不需要手动设置系统环境变量。
-
-## 4. 整体架构
-
-项目整体分为五层：
-
-1. UI 交互层
-2. 前端状态与业务编排层
-3. Tauri 命令桥接层
-4. Rust 系统能力层
-5. 外部服务 Provider 层
-
-### 4.1 UI 交互层
-
-UI 层负责展示和收集用户操作，包括：
-
-- 录音按钮
-- 快捷键状态提示
-- 润色模板选择
-- 输出方式选择
-- 原始识别文本
-- 最终输出文本
-- 历史记录
-- 设置弹窗或设置页面
-
-UI 不直接处理系统能力和外部 API 密钥，只通过前端业务层和 Tauri command 间接调用。
-
-### 4.2 前端状态与业务编排层
-
-前端业务层负责串联核心流程：
-
-1. 开始录音
-2. 结束录音
-3. 调用语音识别
-4. 判断是否需要 AI 润色
-5. 输出最终文本
-6. 写入历史记录
-7. 更新界面状态
-
-前端通过 Recoil 保存当前状态，通过 TypeScript 类型定义保证数据结构清晰。
-
-### 4.3 Tauri 命令桥接层
-
-Tauri command 用于连接前端和 Rust 后端。前端通过 `invoke` 调用后端能力。
-
-主要命令包括：
-
-- `start_recording`
-- `stop_recording`
-- `recognize_speech`
-- `polish_text`
-- `copy_to_clipboard`
-- `insert_text`
 - `load_settings`
 - `save_settings`
 - `load_history`
-- `save_history_item`
+- `save_history`
+- `copy_text`
+- `insert_text`
+- `set_window_mode`
+- `asr_start`
+- `asr_append_audio`
+- `asr_stop`
+- `asr_cancel`
 
-实际开发时可以根据 Tauri 插件能力调整命令边界。
+前端只通过 service 模块调用这些命令，浏览器开发模式下提供 localStorage 和 Clipboard API 兜底。
 
-### 4.4 Rust 系统能力层
+## 本地数据
 
-Rust 层负责更接近系统的能力：
+Rust 使用 Tauri app data 目录保存：
 
-- 管理录音临时数据
-- 调用语音识别 Provider
-- 调用 LLM Provider
-- 读写本地配置
-- 读写历史记录
-- 操作剪贴板
-- 执行自动插入
-- 注册和处理全局快捷键
+- `settings.json`
+- `history.json`
 
-将这些能力放在 Rust 层，可以避免在前端暴露过多系统细节和敏感配置。
-
-### 4.5 外部服务 Provider 层
-
-Provider 层用于隔离具体服务实现，避免产品逻辑和某个服务商强绑定。
-
-建议定义两个核心接口：
-
-- `SpeechRecognitionProvider`
-- `LlmProvider`
-
-语音识别 Provider 负责把音频数据转换成中文文本。LLM Provider 负责把原始文本和提示词模板转换成最终文本。
-
-## 5. 核心模块设计
-
-### 5.1 录音模块
-
-录音模块支持两种触发方式：
-
-- 页面按钮触发：点击开始，再次点击结束
-- 快捷键触发：长按开始，松开结束
-
-录音结束后，系统生成临时音频数据。临时音频可以以文件或内存数据形式存在，但不作为用户内容长期保存。识别完成后应清理临时数据。
-
-### 5.2 语音识别模块
-
-语音识别模块采用 Provider 抽象：
-
-```ts
-type SpeechRecognitionResult = {
-  text: string;
-  durationMs?: number;
-  provider: string;
-};
-```
-
-第一版优先接入云端识别服务，保证准确度和接入效率。后续可以扩展：
-
-- 本地语音识别
-- 实时流式识别
-- 其他云端识别服务
-
-### 5.3 AI 润色模块
-
-AI 润色模块接收原始识别文本和模板配置，调用 OpenAI-compatible Chat Completions 接口生成最终文本。
-
-模板结构建议如下：
-
-```ts
-type PromptTemplate = {
-  id: string;
-  name: string;
-  description: string;
-  systemPrompt: string;
-  userPromptTemplate: string;
-  builtIn: boolean;
-};
-```
-
-内置模板包括：
-
-- 原文模式
-- 去除口语
-- 正式表达
-- 简洁表达
-- 聊天表达
-- 会议/课堂要点
-- 自定义提示词
-
-### 5.4 输出模块
-
-输出模块支持：
-
-- 复制到剪贴板
-- 自动插入到当前光标位置
-- 同时复制并插入
-
-自动插入可能受目标软件、权限和焦点状态影响。因此系统应始终保留复制能力作为兜底方案。
-
-### 5.5 设置模块
-
-设置模块保存用户配置：
-
-- STT 服务配置
-- LLM Base URL
-- LLM API Key
-- LLM Model
-- Temperature
-- 默认模板
-- 默认输出方式
-- 快捷键
-
-配置保存在本地，不要求用户手动设置环境变量。
-
-### 5.6 历史记录模块
-
-历史记录用于保存最近输入结果，方便用户找回内容。每条记录包含：
+历史记录 schema：
 
 ```ts
 type HistoryItem = {
@@ -240,146 +87,63 @@ type HistoryItem = {
 };
 ```
 
-历史记录只保存文本，不保存原始音频。
+历史记录只保存文本，不保存音频。
 
-## 6. 核心流程
+## ASR 实现
 
-### 6.1 按钮录音流程
+DashScope 路径：
 
-1. 用户点击录音按钮。
-2. 应用进入 Recording 状态。
-3. 用户再次点击按钮。
-4. 应用停止录音并进入 Recognizing 状态。
-5. 语音识别模块返回原始文本。
-6. 如果选择原文模式，直接进入输出流程。
-7. 如果选择润色模板，进入 Polishing 状态。
-8. LLM 返回最终文本。
-9. 应用根据用户设置复制或插入文本。
-10. 本次结果写入历史记录。
+1. 前端创建 16 kHz `AudioContext`。
+2. `public/pcm-worklet.js` 把 Float32 mono 输入转换为 Int16 LE。
+3. 前端把 PCM bytes 转成 base64，通过 `asr_append_audio` 发送。
+4. Rust 后端维护一个 WebSocket session。
+5. Rust 把 delta/completed/error/session_finished 事件发回前端。
 
-### 6.2 快捷键录音流程
-
-1. 用户长按快捷键。
-2. 应用开始录音。
-3. 用户松开快捷键。
-4. 应用停止录音。
-5. 后续流程与按钮录音一致。
-
-### 6.3 AI 润色流程
-
-1. 获取原始识别文本。
-2. 获取当前模板。
-3. 拼接 system prompt 和 user prompt。
-4. 调用 OpenAI-compatible API。
-5. 解析模型返回文本。
-6. 将模型返回文本作为最终输出。
-
-## 7. 状态设计
-
-应用主状态包括：
-
-```ts
-type AppStatus =
-  | "idle"
-  | "recording"
-  | "recognizing"
-  | "polishing"
-  | "completed"
-  | "failed";
-```
-
-状态含义：
-
-- `idle`：待机中，可以开始录音
-- `recording`：录音中，不允许重复开始录音
-- `recognizing`：语音识别中
-- `polishing`：AI 润色中
-- `completed`：处理完成
-- `failed`：处理失败
-
-状态用于控制按钮可用性、状态提示、加载动画和错误信息。
-
-## 8. 数据流
-
-核心数据流如下：
+默认 endpoint 和 model：
 
 ```text
-用户语音
-  -> 录音模块
-  -> 临时音频数据
-  -> 语音识别 Provider
-  -> 原始识别文本
-  -> AI 润色 Provider
-  -> 最终文本
-  -> 剪贴板 / 自动插入 / 历史记录
+wss://dashscope.aliyuncs.com/api-ws/v1/realtime
+qwen3-asr-flash-realtime
 ```
 
-如果用户选择原文模式，则跳过 AI 润色 Provider：
+## LLM 实现
 
-```text
-原始识别文本 -> 最终文本 -> 输出模块
+`src/domain/llm.ts` 构造 OpenAI-compatible `/chat/completions` 请求：
+
+- `model`
+- `temperature`
+- `stream: false`
+- system/user messages
+
+如果 LLM 未配置或请求失败，当前流程保留原始识别文本作为最终输出。
+
+## 输出与窗口
+
+- `copy_text` 使用 `arboard` 写剪贴板。
+- `insert_text` 先写剪贴板，再尝试切回最近的外部前台窗口并模拟 `Ctrl+V`。
+- 后端轮询记录最近外部窗口，用于自动插入时恢复焦点。
+- `set_window_mode` 支持 `full`、`compact`、`spirit` 三种窗口模式。
+
+## 安全与隐私边界
+
+- API Key 不写死在源码里。
+- 历史记录不保存音频。
+- 输出失败时优先保留文本。
+- 当前未实现密钥加密存储，设置 JSON 位于本机 app data 目录，应在后续版本评估加密或系统密钥环。
+
+## 验证命令
+
+```powershell
+npm run typecheck
+npm test
+npm run build
+cargo check --manifest-path src-tauri\Cargo.toml
 ```
 
-## 9. 配置与安全
+Tauri 打包可用：
 
-LLM API Key 和服务配置保存在本地。产品不要求用户手动设置系统环境变量。
+```powershell
+npm run tauri build
+```
 
-安全原则：
-
-- 不在前端代码中写死 API Key
-- 不把 API Key 输出到日志
-- 不长期保存原始音频
-- 自动插入失败时不丢失文本结果
-- 网络或模型调用失败时保留原始识别文本
-
-## 10. 错误处理
-
-常见错误及处理方式：
-
-| 错误场景 | 处理方式 |
-| :--- | :--- |
-| 麦克风不可用 | 提示用户检查麦克风权限或设备 |
-| 录音内容为空 | 提示未检测到有效语音 |
-| 语音识别失败 | 保留录音状态错误信息，允许重试 |
-| LLM 未配置 | 跳过润色或提示进入设置 |
-| LLM 调用失败 | 保留原始识别文本作为最终可用文本 |
-| 自动插入失败 | 自动复制到剪贴板并提示用户手动粘贴 |
-| 网络不可用 | 提示检查网络和服务配置 |
-
-## 11. 扩展预留
-
-### 11.1 实时流式识别
-
-后续可以增加 `StreamingSpeechRecognitionProvider`，支持边录音边发送音频片段，并接收中间识别结果。
-
-实时识别需要额外处理：
-
-- 音频分片
-- WebSocket 或流式 HTTP
-- 中间结果展示
-- 最终结果修正
-- 断句和标点策略
-
-### 11.2 本地语音识别
-
-后续可以增加本地 STT Provider，用于降低长期成本并提升隐私性。本地识别需要处理模型下载、硬件性能差异和推理速度问题。
-
-### 11.3 更多 LLM 供应商
-
-当前优先支持 OpenAI-compatible API。后续可以新增不同协议的 LLM Provider，例如本地模型服务或厂商专用协议。
-
-### 11.4 个人词库
-
-后续可以加入个人词库，用于提升姓名、课程名、专业术语、项目名等内容的识别和润色效果。
-
-## 12. 演示关注点
-
-演示时重点体现以下能力：
-
-- 用户可以通过按钮或快捷键完成语音输入
-- 系统可以识别中文语音
-- 系统可以根据场景模板进行 AI 润色
-- 用户可以选择复制或自动插入
-- 设置页可以配置模型服务
-- 历史记录可以找回最近输入
-- 产品对准确度、易用性、速度和成本进行了明确权衡
+当前 `tauri.conf.json` 中 `bundle.active` 为 `false`，因此默认目标是生成可运行程序，不生成安装包。

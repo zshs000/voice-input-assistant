@@ -1,90 +1,35 @@
 # Progress Log
 
-## Session Start
+## 2026-05-24
 
-- Started active `/goal` implementation.
-- Loaded process skills for brainstorming, planning with files, TDD, writing plans, executing plans, requesting review, and verification.
-- Confirmed repository is a normal checkout on `master`, not an isolated linked worktree.
-- Chose current checkout because `.gitignore` already has a user change and the user requested direct long-running implementation.
-- Toolchain check:
-  - Node `v25.2.1`
-  - npm `11.6.2`
-  - rustc `1.95.0`
-  - cargo `1.95.0`
-- Scaffold decision: create the project files directly to avoid interactive generator friction.
-- Created initial Vite/React/Tauri scaffold files.
-- `npm install` first failed due cache-only registry access, then succeeded with approved network escalation.
-- First verification attempt:
-  - `npm test`: failed while loading Vite config because esbuild could not spawn under sandbox (`EPERM`).
-  - `npm run build`: same esbuild `spawn EPERM`.
-  - `cargo check`: failed in offline mode because `serde` was not cached.
-- Escalated frontend verification:
-  - `npm test`: 1 test file passed, 1 test passed.
-  - `npm run build`: TypeScript and Vite build completed successfully.
-- Escalated `cargo check` timed out after roughly 184 seconds during first dependency resolution/compile; needs a longer rerun.
-- Longer `cargo check` rerun exposed a Tauri config/resource issue: `icons/icon.ico` was required.
-- Added `src-tauri/icons/icon.ico`.
-- `cargo check` completed successfully after adding the icon.
-- Wrote domain tests first for templates, settings, history, and LLM helpers.
-- Verified RED state: 4 new test suites failed because production modules were missing.
-- Implemented:
-  - `src/domain/templates.ts`
-  - `src/domain/settings.ts`
-  - `src/domain/history.ts`
-  - `src/domain/llm.ts`
-- Fixed a build-only ES2020 compatibility issue by avoiding `String.replaceAll`.
-- Verification after domain implementation:
-  - `npm test`: 5 test files passed, 12 tests passed.
-  - `npm run build`: completed successfully.
-- Wrote frontend service tests first for browser fallback settings/history, mock recording/STT, and clipboard output.
-- Verified RED state: service test failed because `src/services/tauri.ts` did not exist.
-- Implemented `src/services/tauri.ts` with Tauri command calls and browser/localStorage fallback.
-- Implemented Rust Tauri commands in `src-tauri/src/commands.rs`:
-  - settings/history JSON persistence
-  - clipboard copy
-  - insert command as clipboard fallback
-  - mock recording start/stop
-  - mock speech recognition
-- Added `arboard` clipboard dependency.
-- Verification after bridge implementation:
-  - `cargo check`: completed successfully.
-  - `npm test`: 6 test files passed, 16 tests passed.
-  - `npm run build`: completed successfully.
-- Wrote App-level test first for the real MVP workspace.
-- Verified RED state: App test failed because the placeholder UI lacked the recording button, template selector, output selector, settings, history, and status.
-- Replaced placeholder UI with:
-  - main recording panel
-  - template selector
-  - output mode selector
-  - recognized/final text result area
-  - settings form for LLM and STT provider
-  - recent history list
-  - workflow wiring through mock recording/STT, optional LLM polishing, output, and history persistence
-- Verification after UI implementation:
-  - `npm test`: 6 test files passed, 16 tests passed.
-  - `npm run build`: completed successfully.
-- Wrote tests first for custom template creation/merging, custom template settings persistence, explicit mock STT provider contract, and UI presence for the custom template form.
-- Verified RED state:
-  - `createCustomTemplate` missing.
-  - `customTemplates` missing from settings.
-  - `src/domain/speech.ts` missing.
-  - custom template form missing in UI.
-- Implemented:
-  - `createCustomTemplate`
-  - `getAvailableTemplates`
-  - `customTemplates` in `AppSettings`
-  - `src/domain/speech.ts` provider contract and mock provider
-  - custom template form in the settings panel
-- Fixed ES2020 build compatibility in template tests.
-- Verification after custom template/STT abstraction implementation:
-  - `npm test`: 7 test files passed, 19 tests passed.
-  - `npm run build`: completed successfully.
-  - `cargo check`: completed successfully.
-- Desktop packaging pass:
-  - Added a stable bundle icon path in Tauri config.
-  - Full installer bundling was not kept as the default MVP path because WiX/NSIS tooling failed in this environment.
-  - Set Tauri bundling inactive so `npm run tauri build` reliably emits the runnable release executable.
-  - `npm run tauri build` completed successfully and produced `src-tauri/target/release/voice-input-assistant.exe`.
-- Completion audit:
-  - Project scaffold, desktop UI, recording entry, STT abstraction, LLM-compatible polishing client, built-in/custom templates, settings persistence, history, clipboard output, and auto-insert fallback command are implemented.
-  - The MVP uses mock/offline recording and STT behavior by default; real STT integration is isolated behind provider/config boundaries for later expansion.
+- Started continuation for the active cleanup/review goal.
+- Loaded relevant process skills:
+  - `using-superpowers`
+  - `planning-with-files`
+  - `verification-before-completion`
+- Read existing `task_plan.md`, `findings.md`, and `progress.md`; they described the earlier MVP implementation and were not aligned with the current review/cleanup objective.
+- Checked root directory, Git status, package metadata, Cargo metadata, and docs directory.
+- Replaced planning files with the current review/cleanup plan.
+- Read key frontend service/domain modules, Tauri backend commands, Tauri config, tests, and all current docs.
+- Identified outdated docs: Recoil/state plan, old command list, Tauri Store/clipboard-manager references, old non-streaming recognition plan, and local handoff/development plan artifacts.
+- Ran baseline verification:
+  - `npm test`: 10 files / 39 tests passed.
+  - `npm run build`: passed.
+  - `cargo check --manifest-path src-tauri\Cargo.toml`: passed.
+- Applied low-risk code cleanup:
+  - Added `npm run typecheck`.
+  - Fixed missing STT provider normalization to preserve the configured default instead of changing empty persisted settings to mock.
+- Archived outdated documents to `docs/archive/`.
+- Rewrote current documentation:
+  - `README.md`
+  - `docs/product-design.md`
+  - `docs/technical-design.md`
+  - `docs/prompt-templates.md`
+  - `docs/archive/README.md`
+  - `PROJECT_REVIEW.md`
+- Ran final verification:
+  - `npm run typecheck`: passed.
+  - `npm test`: 10 files / 39 tests passed.
+  - `npm run build`: passed.
+  - `cargo check --manifest-path src-tauri\Cargo.toml`: passed.
+- Added completion audit checklist to `PROJECT_REVIEW.md`.
