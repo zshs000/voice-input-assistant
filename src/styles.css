@@ -270,15 +270,31 @@ h3 {
   box-shadow: 0 8px 18px rgb(184 134 43 / 28%);
 }
 
+.record-button.status-recognizing:hover:not(:disabled),
+.record-button.status-polishing:hover:not(:disabled) {
+  background: linear-gradient(135deg, #9d7223 0%, #c08b2f 100%);
+  border-color: #9d7223;
+}
+
 .record-button.status-completed {
   background: linear-gradient(135deg, #2f8055 0%, #38a06a 100%);
   border-color: #2f8055;
   box-shadow: 0 8px 18px rgb(47 128 85 / 28%);
 }
 
+.record-button.status-completed:hover:not(:disabled) {
+  background: linear-gradient(135deg, #266d48 0%, #2f8055 100%);
+  border-color: #266d48;
+}
+
 .record-button.status-failed {
   background: linear-gradient(135deg, #a83a3a 0%, #c34a4a 100%);
   border-color: #a83a3a;
+}
+
+.record-button.status-failed:hover:not(:disabled) {
+  background: linear-gradient(135deg, #8d3030 0%, #a83a3a 100%);
+  border-color: #8d3030;
 }
 
 @keyframes record-button-pulse {
